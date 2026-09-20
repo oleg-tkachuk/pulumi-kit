@@ -21,6 +21,21 @@ the audits that need the API. `--persona=regular` rather than `auditor`: the
 auditor persona is documented as tolerating false positives, which is the wrong
 contract for a blocking gate.
 
+## Which of them a merge waits for
+
+Six are required by `main`'s protection: `Changed paths`, `Build, vet and test`,
+`Lint`, `Reachable vulnerabilities`, `Workflow syntax` and `Workflow
+permissions`. `Dispatch release` is not — it never runs on a pull request.
+
+A **skipped** required check does not block a merge, which is what makes the
+gate below safe. Measured rather than assumed: a documentation-only pull request
+in `hetzner-iac` merged with fourteen skipped required checks on a branch with
+`enforce_admins` on.
+
+Renaming a job renames its check, and a required check that never reports again
+blocks every open pull request — so a rename is a protection change in the same
+breath.
+
 ## A documentation change runs nothing
 
 `Changed paths` diffs the pull request and every other job is gated on its
