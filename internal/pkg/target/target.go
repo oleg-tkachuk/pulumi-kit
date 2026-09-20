@@ -47,19 +47,22 @@ const GroupPrefix = "group:"
 // a URN, so splitting on it can never cut a selector in half.
 const SelectorSeparator = ","
 
-// nested is the separator Pulumi puts between a parent's type and a child's.
-const nested = "$"
-
 // Resource is one entry of `pulumi stack --show-urns --output json`.
 //
-// Three fields is all that listing gives, and all this needs. `stack export`
+// Four fields is all that listing gives, and all this needs. `stack export`
 // would give the whole checkpoint including every resource's inputs and any
 // encrypted secret — more than the question asks for, and not something to
 // write to a pipe.
+//
+// Parent is what makes a group exact. A URN's type path carries the types of a
+// resource's ancestors and not their names, so it cannot say which instance of
+// a twice-declared component a child belongs to; the parent URN can, because it
+// ends in that instance's name.
 type Resource struct {
-	URN  string `json:"urn"`
-	Type string `json:"type"`
-	Name string `json:"name"`
+	URN    string `json:"urn"`
+	Type   string `json:"type"`
+	Name   string `json:"name"`
+	Parent string `json:"parent"`
 }
 
 // listing is the shape of that command's output.
@@ -82,6 +85,16 @@ var ErrNoSelector = errors.New("no selector given")
 // would take every Ingress object in the cluster, and targeting more than was
 // asked for is the one failure a tool about targeting must not have.
 var ErrNoGroupPackage = errors.New("a group selector needs a group package")
+
+// ErrNoParents is returned when the state carries no parent information at all.
+//
+// Descendants are found by following `parent`, so a listing without it would
+// resolve every group to its own node and quietly leave the children behind —
+// a selection narrower than asked for, which for an apply is a partial update
+// reporting success. Refused instead: the field has been in
+// `pulumi stack --show-urns --output json` for a long time, and this only
+// fires if that changes.
+var ErrNoParents = errors.New("the stack listing carries no parent information, so a group cannot be resolved")
 
 // StackCommand is the listing this parses, and it is a contract rather than a
 // convenience: `pulumi stack --show-urns` without --output prints a tree laid
@@ -211,36 +224,106 @@ func Match(resources []Resource, selector, groupPackage string) ([]string, error
 // node itself is what a destroy has to remove as well, or the group's own
 // entry is orphaned in the state.
 //
-// The node is found first, and its OWN type token is then what children are
-// matched by. That removes the guesswork: a child's URN contains its parent's
-// full type followed by `$`, so there is nothing to infer and no leaf to
-// collide on.
+// Descendants are found by following `parent` from the node's URN, not by
+// looking for the node's type in other URNs. The substring form was wrong and
+// measured wrong: a URN's type path carries ancestors' TYPES and not their
+// names, so with two components of one type `group:Network` took the first
+// node, its child, and the OTHER node's child — while leaving the other node
+// itself out. A targeted destroy would have removed a resource under a
+// component nobody named and orphaned the one it belonged to.
 func matchGroup(resources []Resource, group, groupPackage string) ([]string, error) {
-	node, found := groupNode(resources, group, groupPackage)
-	if !found {
-		return nil, noMatch(resources, GroupPrefix+group)
+	node, err := groupNode(resources, group, groupPackage)
+	if err != nil {
+		return nil, err
 	}
 
-	urns := []string{node.URN}
+	children := map[string][]Resource{}
+
+	var parents int
 
 	for _, resource := range resources {
-		if strings.Contains(resource.URN, node.Type+nested) {
-			urns = append(urns, resource.URN)
+		if resource.Parent == "" {
+			continue
+		}
+
+		parents++
+
+		children[resource.Parent] = append(children[resource.Parent], resource)
+	}
+
+	// The stack's own root has no parent, so some resources legitimately carry
+	// none. None of them carrying one is the case this cannot work in.
+	if parents == 0 {
+		return nil, fmt.Errorf("%q: %w", GroupPrefix+group, ErrNoParents)
+	}
+
+	// Breadth-first, because a group is a tree rather than one level: a
+	// LoadBalancer under a Network under a Cluster is two hops down, and an
+	// apply that skipped it would be a partial update reporting success.
+	urns := []string{node.URN}
+
+	for queue := []string{node.URN}; len(queue) > 0; {
+		urn := queue[0]
+		queue = queue[1:]
+
+		for _, child := range children[urn] {
+			urns = append(urns, child.URN)
+			queue = append(queue, child.URN)
 		}
 	}
 
 	return urns, nil
 }
 
+// GroupSeparator disambiguates two components of the same type:
+// `group:Network:net-a`.
+const GroupSeparator = ":"
+
 // groupNode is the component resource a group selector names.
-func groupNode(resources []Resource, group, groupPackage string) (Resource, bool) {
-	for _, resource := range resources {
-		if strings.HasPrefix(resource.Type, groupPackage+":") && TypeLeaf(resource.Type) == group {
-			return resource, true
-		}
+//
+// Ambiguity is an error rather than a choice, the same as it is for a plain
+// name. Taking the first of two same-typed components is how the bug above
+// looked from the outside: a selection that was confidently wrong.
+func groupNode(resources []Resource, group, groupPackage string) (Resource, error) {
+	wantType, wantName := group, ""
+	if before, after, qualified := strings.Cut(group, GroupSeparator); qualified {
+		wantType, wantName = before, after
 	}
 
-	return Resource{}, false
+	var found []Resource
+
+	for _, resource := range resources {
+		if !strings.HasPrefix(resource.Type, groupPackage+":") {
+			continue
+		}
+
+		if TypeLeaf(resource.Type) != wantType {
+			continue
+		}
+
+		if wantName != "" && resource.Name != wantName {
+			continue
+		}
+
+		found = append(found, resource)
+	}
+
+	switch len(found) {
+	case 0:
+		return Resource{}, noMatch(resources, GroupPrefix+group)
+	case 1:
+		return found[0], nil
+	}
+
+	qualified := make([]string, 0, len(found))
+	for _, resource := range found {
+		qualified = append(qualified, GroupPrefix+wantType+GroupSeparator+resource.Name)
+	}
+
+	slices.Sort(qualified)
+
+	return Resource{}, fmt.Errorf("%q names %d components: say which one, as %s",
+		GroupPrefix+group, len(found), strings.Join(qualified, " or "))
 }
 
 // TypeLeaf is the last segment of a Pulumi type token: Release from
