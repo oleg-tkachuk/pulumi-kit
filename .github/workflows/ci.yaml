@@ -43,7 +43,7 @@ jobs:
   # way — a file type nobody has thought about yet is relevant by default.
   changes:
     name: Changed paths
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -107,7 +107,7 @@ jobs:
     name: Build, vet and test
     needs: [changes]
     if: needs.changes.outputs.relevant != 'false'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -149,7 +149,7 @@ jobs:
     name: Lint
     needs: [changes]
     if: needs.changes.outputs.relevant != 'false'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -170,7 +170,7 @@ jobs:
     name: Reachable vulnerabilities
     needs: [changes]
     if: needs.changes.outputs.relevant != 'false'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -204,7 +204,7 @@ jobs:
     name: Workflow syntax
     needs: [changes]
     if: needs.changes.outputs.relevant != 'false'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -227,7 +227,7 @@ jobs:
     name: Workflow permissions
     needs: [changes]
     if: needs.changes.outputs.relevant != 'false'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -274,7 +274,7 @@ jobs:
       github.event_name == 'push' && github.ref == 'refs/heads/main' &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: write # POST /repos/{owner}/{repo}/dispatches needs write

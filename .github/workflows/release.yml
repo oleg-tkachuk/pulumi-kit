@@ -28,7 +28,7 @@ concurrency:
 jobs:
   release:
     name: Compute the tag and publish the release
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: write # semantic-release pushes the tag; gh creates the release
