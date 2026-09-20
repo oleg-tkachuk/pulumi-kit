@@ -43,11 +43,12 @@ Requires the `pulumi` CLI on `PATH` and Go 1.27 or newer.
 Written for [Task](https://taskfile.dev) — the runner whose
 [`vars`](https://taskfile.dev/reference/schema#variable) and
 [`cmds`](https://taskfile.dev/reference/schema#task) this uses. Pin a tag
-rather than `@latest` anywhere a build has to be reproducible:
+rather than `@latest` anywhere a build has to be reproducible — the release
+badge above says which one is current:
 
 ```yaml
 vars:
-  KIT: 'go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@v0.1.3'
+  KIT: 'go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@v0.1.6'
 tasks:
   apply:
     cmds:
