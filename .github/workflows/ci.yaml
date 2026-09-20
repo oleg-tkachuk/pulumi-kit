@@ -5,17 +5,71 @@ on:
     branches: [main]
   pull_request:
 
-permissions:
-  contents: read
+# Nothing at the top level — each job asks for what it needs.
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
+    name: Build, vet and test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+
+      # Named files rather than a count, so the failure says which one.
+      - name: gofmt
+        run: |
+          set -euo pipefail
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            printf '%s\n' "$unformatted"
+            exit 1
+          fi
+
       - run: go vet ./...
-      - run: go test ./...
+
+      # -race because both commands shell out and parse, and a data race in a
+      # tool that decides what gets destroyed is not a failure to discover
+      # from behaviour.
+      - run: go test -race ./...
+
+  dispatch-release:
+    name: Dispatch release
+    needs: [test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # POST /repos/{owner}/{repo}/dispatches needs write
+    steps:
+      - name: Dispatch the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # --input rather than -f: client_payload is nested and the form
+          # syntax cannot express that. Both values come from Actions itself
+          # and arrive through env rather than an Actions expression inside
+          # the script, so nothing here is substituted before the shell runs.
+          gh api "repos/${GITHUB_REPOSITORY}/dispatches" --input - <<JSON
+          {
+            "event_type": "release",
+            "client_payload": {
+              "sha": "${GITHUB_SHA}",
+              "ci_run_id": "${GITHUB_RUN_ID}"
+            }
+          }
+          JSON
+          printf '%s\n' "dispatched release for ${GITHUB_SHA}"
