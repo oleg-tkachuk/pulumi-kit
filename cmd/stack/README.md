@@ -3,9 +3,31 @@
 Answers and settles questions about Pulumi stacks.
 
 ```bash
-stack exists <project-dir> <stack>   # exit zero if it is there, else the list of stacks that are
+stack exists <project-dir> <stack>   # status says whether it is there; see below
 stack ensure <project-dir> <stack>   # select it, creating it first if needed; prints created|existing
 stack ref    <project-dir> <stack>   # the <org>/<project>/<stack> a StackReference needs
+```
+
+## `exists` has three answers, not two
+
+| Status | Means |
+|--------|-------|
+| `0` | the stack is there |
+| `2` | the project has no stack of that name; the ones it does have are on stderr |
+| `1` | the question could not be answered — no credentials, no network, not a project |
+
+Two of those were one status, and a caller cannot tell them apart from one:
+
+```bash
+if stack exists "$dir" "$name"; then :; else create_it; fi   # creates on a network failure
+```
+
+Test for absence explicitly instead:
+
+```bash
+stack exists "$dir" "$name" && exit 0
+[ $? -eq 2 ] || exit 1   # a real failure, not an absence
+create_it
 ```
 
 ## Why it exists

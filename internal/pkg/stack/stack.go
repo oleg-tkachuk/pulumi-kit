@@ -17,6 +17,7 @@ package stack
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -27,6 +28,15 @@ import (
 type Row struct {
 	Name string `json:"name"`
 }
+
+// ErrNotFound says the project has no stack of that name, as opposed to the
+// backend having failed to answer.
+//
+// The two were one exit code, and a caller cannot tell them apart from one:
+// `if stack exists "$dir" "$name"; then … else <create it> fi` created a stack
+// because the network was down. Distinguishing them is the whole point of this
+// error existing.
+var ErrNotFound = errors.New("no such stack")
 
 // NoStacks is what Names reports for a project with none, so a caller
 // formatting a list never prints an empty string.
