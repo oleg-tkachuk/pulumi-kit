@@ -287,3 +287,44 @@ func TestMatch_GroupRefusesAListingWithNoParents(t *testing.T) {
 	_, err := target.Match(orphaned, target.GroupPrefix+"Network:net-a", groupPackage)
 	require.ErrorIs(t, err, target.ErrNoParents)
 }
+
+func TestNames_AreSortedAndWithoutRepeats(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, []string{
+		"Ingress:argocd",
+		"Ingress:ingress",
+		"LoadBalancer:ingress-lb",
+		"LoadBalancerTarget:ingress-targets",
+		"Release:argocd",
+		"Release:traefik",
+		"Stack:services-dev",
+	}, target.Names(stack))
+}
+
+// TestNames_AreWhatTheRefusalCarries is the property -list exists for.
+//
+// Its whole value is that an operator no longer has to mistype a selector on
+// purpose to see what a stack holds. If the two lists were assembled
+// separately they would drift, and the drift would be invisible — each would
+// look right on its own, and the one an operator reads under pressure would
+// be the stale one.
+func TestNames_AreWhatTheRefusalCarries(t *testing.T) {
+	t.Parallel()
+
+	_, err := target.Match(stack, "no-such-resource", groupPackage)
+	require.Error(t, err)
+
+	for _, name := range target.Names(stack) {
+		assert.Contains(t, err.Error(), name,
+			"the refusal must carry the same list -list prints")
+	}
+}
+
+func TestNames_OnAnEmptyState(t *testing.T) {
+	t.Parallel()
+
+	// Not reachable through the command — ResourcesIn refuses an empty stack
+	// first — but a caller of the package should not get a nil surprise.
+	assert.Empty(t, target.Names(nil))
+}
