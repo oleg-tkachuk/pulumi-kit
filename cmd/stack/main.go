@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/pulumi"
 	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/stack"
 )
 
@@ -50,6 +51,10 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 	}
 
 	command, dir, name := args[0], args[1], args[2]
+
+	if err := pulumi.ValidateStackName(name); err != nil {
+		return err
+	}
 
 	switch command {
 	case "exists":
