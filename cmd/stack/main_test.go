@@ -44,6 +44,11 @@ func TestRun_RefusesBeforeItReachesPulumi(t *testing.T) {
 		"a help flag among arguments": {
 			args: []string{"-h", ".", "dev"}, fails: "unknown command",
 		},
+		// Validated before the name reaches an exec, and before the command
+		// is even dispatched.
+		"a traversing stack name": {
+			args: []string{"ensure", ".", "../other"}, fails: "is not a stack name",
+		},
 	} {
 		var out bytes.Buffer
 
