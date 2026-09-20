@@ -11,7 +11,8 @@ target -dir <project-dir> -stack <stack> [-group-package <pkg>] <selector[,selec
 |----------|-------|
 | `traefik` | the resource with that name, if exactly one has it |
 | `Release:traefik` | that name with that type leaf, when one name has two types |
-| `group:Ingress` | a component resource and everything under it |
+| `group:Ingress` | a component resource and its whole subtree |
+| `group:Network:net-a` | one of two components of the same type |
 | `traefik,cert-manager` | both, as one run with two `--target` flags |
 
 ## Why it exists
@@ -39,8 +40,21 @@ changed nothing. A refusal here lists what the stack does hold instead.
 - **`group:` with no `-group-package`.** A component named `Ingress` and a
   Kubernetes `Ingress` share a type leaf, so matching on the leaf alone would
   take every Ingress in the cluster.
+- **`group:Type` when two components share that type**, naming both as
+  `group:Type:name` rather than picking one.
+- **A listing with no `parent` field at all.** The subtree is walked by
+  following `parent`; without it a group would resolve to its own node and
+  quietly leave the children behind.
 - **A stack name that is not one**, and a directory with no `Pulumi.yaml`.
 
 A comma-separated list is one `pulumi` run rather than one per component, which
 is worth more than the typing: two runs are two chances for the second to act
 on state the first one changed.
+
+## How a group is resolved
+
+By following `parent` from the component's URN, not by looking for its type in
+other URNs. A URN's type path carries the types of a resource's ancestors and
+not their names, so the substring form could not tell two instances of one
+component apart — measured, with two `Network` components it returned the first
+node, its child and the **other** node's child, and left the other node out.
