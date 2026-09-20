@@ -11,6 +11,16 @@
 Command-line tools for driving Pulumi from a Taskfile or CI job. Each one
 exists because Pulumi's own answer to a mistake is silence.
 
+## Contents
+
+- [The commands](#the-commands)
+- [Quick start](#quick-start)
+- [Using them from a Taskfile](#using-them-from-a-taskfile)
+- [Documentation](#documentation)
+- [Licence](#licence)
+
+## The commands
+
 | Command | What it answers |
 |---------|-----------------|
 | [`target`](cmd/target) | which URNs does this name mean — and does it name anything at all |
@@ -28,7 +38,12 @@ go run github.com/oleg-tkachuk/pulumi-kit/cmd/stack@latest -h
 
 Requires the `pulumi` CLI on `PATH` and Go 1.27 or newer.
 
-Pin a tag rather than `@latest` anywhere a build has to be reproducible:
+## Using them from a Taskfile
+
+Written for [Task](https://taskfile.dev) — the runner whose
+[`vars`](https://taskfile.dev/reference/schema#variable) and
+[`cmds`](https://taskfile.dev/reference/schema#task) this uses. Pin a tag
+rather than `@latest` anywhere a build has to be reproducible:
 
 ```yaml
 vars:
@@ -54,5 +69,7 @@ tasks:
 
 Extracted from [hetzner-iac](https://github.com/oleg-tkachuk/hetzner-iac),
 where both tools were repository-local and neither needed to be.
+
+## Licence
 
 MIT — see [LICENSE](LICENSE).
