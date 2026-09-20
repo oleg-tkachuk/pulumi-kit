@@ -1,5 +1,13 @@
 # pulumi-kit
 
+[![ci](https://github.com/oleg-tkachuk/pulumi-kit/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/oleg-tkachuk/pulumi-kit/actions/workflows/ci.yaml)
+[![release](https://img.shields.io/github/v/release/oleg-tkachuk/pulumi-kit?sort=semver&label=release&cacheSeconds=3600)](https://github.com/oleg-tkachuk/pulumi-kit/releases/latest)
+[![go](https://img.shields.io/github/go-mod/go-version/oleg-tkachuk/pulumi-kit?logo=go&logoColor=white&label=go&cacheSeconds=3600)](go.mod)
+[![license: MIT](https://img.shields.io/github/license/oleg-tkachuk/pulumi-kit?label=license&cacheSeconds=3600)](LICENSE)
+
+[![Pulumi](https://img.shields.io/badge/Pulumi-8A3391?logo=pulumi&logoColor=white)](https://www.pulumi.com)
+[![Task](https://img.shields.io/badge/Task-29BEB0?logo=task&logoColor=white)](https://taskfile.dev)
+
 Command-line tools for driving Pulumi from a Taskfile or CI job. Each one
 exists because Pulumi's own answer to a mistake is silence.
 
@@ -14,8 +22,8 @@ Nothing to install. `go run` fetches the pinned version when a task needs it,
 so neither command enters your `go.mod`:
 
 ```bash
-go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@v0.1.2 -h
-go run github.com/oleg-tkachuk/pulumi-kit/cmd/stack@v0.1.2 -h
+go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@latest -h
+go run github.com/oleg-tkachuk/pulumi-kit/cmd/stack@latest -h
 ```
 
 Requires the `pulumi` CLI on `PATH` and Go 1.27 or newer.
@@ -24,7 +32,7 @@ Pin a tag rather than `@latest` anywhere a build has to be reproducible:
 
 ```yaml
 vars:
-  KIT: 'go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@v0.1.2'
+  KIT: 'go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@v0.1.3'
 tasks:
   apply:
     cmds:
