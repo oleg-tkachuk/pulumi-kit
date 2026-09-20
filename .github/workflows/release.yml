@@ -93,6 +93,16 @@ jobs:
       # GOPROXY=direct on purpose: proxy.golang.org caches on first request, so
       # going through it here would be a race with its own warm-up rather than
       # a check of the tag. Direct asks git, which already has the answer.
+      #
+      # The first version of this step could not fail, and v0.1.2 is the run
+      # that showed it: `go run … -h 2>&1 | head -3 || true` saw three lines of
+      # `go: downloading` on stderr and truncated before the program said
+      # anything, while `|| true` would have swallowed a non-zero exit. It
+      # reported success having proved nothing — the same shape as the
+      # `--target` that matches nothing, which is what cmd/target exists for.
+      #
+      # So: download first and discard that output, then capture the real run
+      # under `set -e` so its exit code counts, and assert on what it printed.
       - name: Prove the tag is consumable
         env:
           GOPROXY: direct
@@ -104,6 +114,22 @@ jobs:
           [ -n "$tag" ] || exit 0
 
           for command in stack target; do
-            printf '%s\n' "go run .../cmd/${command}@${tag}"
-            go run "github.com/oleg-tkachuk/pulumi-kit/cmd/${command}@${tag}" -h 2>&1 | head -3 || true
+            module="github.com/oleg-tkachuk/pulumi-kit/cmd/${command}@${tag}"
+
+            printf '%s\n' "go run ${module} -h"
+
+            # Warm the module cache, so the run below prints the program's
+            # output and nothing else. A failure here is reported by the run
+            # that follows, with its output attached.
+            go run "$module" -h >/dev/null 2>&1 || true
+
+            # No pipe and no `|| true`: -h must exit zero, and `set -e` is
+            # what makes that a requirement rather than a hope.
+            output="$(go run "$module" -h 2>&1)"
+            printf '%s\n' "$output"
+
+            if ! printf '%s' "$output" | grep -q 'usage:'; then
+              printf '%s\n' "::error::${module} -h printed no usage"
+              exit 1
+            fi
           done
