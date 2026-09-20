@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"flag"
 	"os"
 	"path/filepath"
 	"testing"
@@ -248,4 +249,16 @@ func TestRun_RefusesBeforeItReachesPulumi(t *testing.T) {
 		assert.Contains(t, err.Error(), tc.fails, name)
 		assert.Empty(t, out.String(), "%s printed a URN", name)
 	}
+}
+
+func TestRun_HelpIsNotAFailure(t *testing.T) {
+	t.Parallel()
+
+	// The README tells people to run -h, so it has to exit zero. flag returns
+	// ErrHelp for it, which main distinguishes from a real error.
+	var out, errOut bytes.Buffer
+
+	err := run(context.Background(), []string{"-h"}, &out, &errOut)
+	require.ErrorIs(t, err, flag.ErrHelp)
+	assert.Contains(t, errOut.String(), "usage: target")
 }

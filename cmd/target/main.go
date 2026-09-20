@@ -31,7 +31,15 @@ import (
 )
 
 func main() {
-	if err := run(context.Background(), os.Args[1:], os.Stdout, os.Stderr); err != nil {
+	err := run(context.Background(), os.Args[1:], os.Stdout, os.Stderr)
+
+	// -h is a question that was answered, not a failure. flag has already
+	// printed the usage by the time this returns.
+	if errors.Is(err, flag.ErrHelp) {
+		return
+	}
+
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}

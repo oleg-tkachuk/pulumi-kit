@@ -48,7 +48,7 @@ stack does not exist.
 
 ```yaml
 vars:
-  TARGET: 'go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@v0.1.0'
+  TARGET: 'go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@v0.1.1'
 tasks:
   apply:
     cmds:
