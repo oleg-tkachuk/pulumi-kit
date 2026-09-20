@@ -3,9 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/pulumi"
+	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/stack"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -80,4 +83,19 @@ func TestRun_HelpWorksWithoutTheCLI(t *testing.T) {
 
 	require.NoError(t, run(context.Background(), []string{"-h"}, &out))
 	assert.Contains(t, out.String(), Usage)
+}
+
+func TestExitCode_SeparatesAbsenceFromFailure(t *testing.T) {
+	t.Parallel()
+
+	// Both were ExitFailed, and a caller cannot tell them apart from one
+	// status: `if stack exists "$dir" "$name"; then … else <create it> fi`
+	// created a stack because the network was down.
+	assert.Equal(t, ExitAbsent, exitCode(fmt.Errorf("looked in %s: %w", ".", stack.ErrNotFound)),
+		"absence has its own status, however deeply it is wrapped")
+
+	assert.Equal(t, ExitFailed, exitCode(errors.New("pulumi stack ls: dial tcp: connection refused")),
+		"a backend that did not answer is not an answer")
+
+	assert.Equal(t, ExitFailed, exitCode(errors.New(Usage)))
 }
