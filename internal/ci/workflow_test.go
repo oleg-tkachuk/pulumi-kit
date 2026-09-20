@@ -2,9 +2,11 @@
 package ci
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -108,4 +110,87 @@ func TestDispatchRelease_RunsAfterSkippedChecksButNeverAfterFailedOnes(t *testin
 		assert.Contains(t, condition, guard,
 			"always() without a %s guard dispatches a release after a check did not pass", guard)
 	}
+}
+
+// renovateConfig is the part of .github/renovate.json this file reads.
+type renovateConfig struct {
+	CustomManagers []struct {
+		ManagerFilePatterns []string `json:"managerFilePatterns"`
+		MatchStrings        []string `json:"matchStrings"`
+	} `json:"customManagers"`
+}
+
+// TestRenovateMatchesEveryPinnedTool is the gate on a bot that cannot report
+// its own failure.
+//
+// Renovate does not error on a pin it cannot match — it opens no pull request,
+// for ever, and the repository looks maintained because every other bot
+// request keeps arriving. Both directions are asserted: a pin the pattern
+// misses is a tool nobody upgrades, and an annotation with no pin under it is
+// a pattern that has drifted from the file it was written for.
+func TestRenovateMatchesEveryPinnedTool(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..")
+
+	raw, err := os.ReadFile(filepath.Join(root, ".github", "renovate.json"))
+	require.NoError(t, err)
+
+	var config renovateConfig
+	require.NoError(t, json.Unmarshal(raw, &config))
+
+	var pattern *regexp.Regexp
+
+	for _, manager := range config.CustomManagers {
+		for _, watched := range manager.ManagerFilePatterns {
+			if !strings.Contains(watched, "workflows") {
+				continue
+			}
+
+			require.Len(t, manager.MatchStrings, 1, "one pattern for the workflow pins")
+
+			// Go accepts JavaScript's (?<name>…) syntax, so Renovate's own
+			// pattern compiles here unchanged. One that stops being portable
+			// fails this test rather than passing silently.
+			pattern, err = regexp.Compile(manager.MatchStrings[0])
+			require.NoError(t, err, "the configured pattern must be a valid regular expression")
+		}
+	}
+
+	require.NotNil(t, pattern,
+		"no custom manager watches the workflows — the pinned tools are upgraded by nobody")
+
+	// The datasources these pins resolve from: Go modules for two, PyPI for
+	// zizmor. A fourth would be a change here as well.
+	allowed := map[string]bool{"go": true, "pypi": true}
+
+	annotation := regexp.MustCompile(`# renovate: datasource=(\S+) depName=(\S+)`)
+
+	workflows, err := filepath.Glob(filepath.Join(root, ".github", "workflows", "*.y*ml"))
+	require.NoError(t, err)
+	require.NotEmpty(t, workflows)
+
+	var seen int
+
+	for _, path := range workflows {
+		text, readErr := os.ReadFile(path)
+		require.NoError(t, readErr, path)
+
+		annotations := annotation.FindAllStringSubmatch(string(text), -1)
+		matched := pattern.FindAllStringSubmatch(string(text), -1)
+
+		assert.Len(t, matched, len(annotations),
+			"%s carries %d annotation(s) and the pattern matches %d pin(s)",
+			filepath.Base(path), len(annotations), len(matched))
+
+		for _, found := range annotations {
+			seen++
+
+			assert.True(t, allowed[found[1]],
+				"%s: datasource %q is not one these pins resolve from",
+				filepath.Base(path), found[1])
+		}
+	}
+
+	assert.Equal(t, 3, seen, "three tool pins are annotated; found %d", seen)
 }

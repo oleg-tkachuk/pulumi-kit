@@ -1,0 +1,57 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "Renovate runs from .github/workflows/renovate.yaml rather than the hosted app: installing the app needs rights on the account that were not available.",
+    "It replaces Dependabot rather than joining it. Dependabot handles gomod, github-actions and npm natively but cannot see the three tool versions pinned inside ci.yaml's env, which is the entire reason this exists — and two bots on the same ecosystems means two pull requests for one bump.",
+    "The schedule is the WHOLE of Monday, so weekly batches land in one review. The workflow's cron decides how often Renovate runs; this decides what it may do when it runs. A manual workflow_dispatch sets RENOVATE_FORCE and ignores it, which is how the first pass happens without waiting.",
+    "rebaseWhen keeps branches current because protection on main is strict: without it a pull request goes stale as soon as anything else lands."
+  ],
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard"
+  ],
+  "timezone": "Europe/Kyiv",
+  "rebaseWhen": "behind-base-branch",
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "schedule": ["* * * * 1"],
+
+  "customManagers": [
+    {
+      "description": "The three tool versions in ci.yaml's env, which no built-in manager reads. The `renovate:` comment above each pin carries the datasource and depName, so this pattern knows no special cases — the three are not homogeneous: Go modules for govulncheck and actionlint, PyPI for zizmor. A test in internal/ci reads this regex out of this file and asserts it still matches every annotated pin AND that every pin is annotated, because the failure mode is silent: Renovate opens no pull request, for ever, and nothing says so.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)\\s+[A-Z0-9_]+_VERSION:\\s*\"(?<currentValue>[^\"]+)\""
+      ]
+    }
+  ],
+
+  "packageRules": [
+    {
+      "description": "A pinned tool or action changes what CI does, not what this module gives a consumer, so it releases nothing: ci is not a releasable type. See docs/releases.md.",
+      "matchManagers": ["custom.regex", "github-actions"],
+      "semanticCommitType": "ci",
+      "labels": ["tooling"]
+    },
+    {
+      "description": "The module graph is test-only today — testify and its transitives. chore releases nothing, which is right for that. A dependency that reaches the commands themselves would need a type semantic-release acts on, so adding one is a change here as well.",
+      "matchManagers": ["gomod"],
+      "semanticCommitType": "chore",
+      "labels": ["go"]
+    },
+    {
+      "description": "semantic-release and its preset. They shape releases and ship nothing to a consumer.",
+      "matchManagers": ["npm"],
+      "semanticCommitType": "ci",
+      "labels": ["tooling"]
+    }
+  ],
+
+  "vulnerabilityAlerts": {
+    "description": "Exempt from the Monday schedule: a fix should not wait for a batch.",
+    "schedule": null,
+    "labels": ["security"]
+  }
+}
