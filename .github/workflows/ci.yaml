@@ -34,8 +34,63 @@ env:
   ZIZMOR_VERSION: "1.30.1"
 
 jobs:
+  # Whether anything the checks below read has changed.
+  #
+  # An EXCLUSION list, and the direction matters more than its contents: an
+  # inclusion list has to be extended for each new kind of input, and
+  # forgetting is silent and green. Excluding documentation cannot fail that
+  # way — a file type nobody has thought about yet is relevant by default.
+  changes:
+    name: Changed paths
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The diff below needs both ends of it.
+          fetch-depth: 0
+
+      - id: filter
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          inert='(^|/)[^/]*\.md$|^docs/|^LICENSE$|^\.gitignore$|\.(png|jpe?g|svg|gif)$'
+
+          if [ -z "${BASE:-}" ]; then
+            # A push to main: always relevant, so the release path is never
+            # gated on a diff computation.
+            printf '%s\n' "relevant=true" >>"$GITHUB_OUTPUT"
+            printf '%s\n' "push to main — running everything"
+            exit 0
+          fi
+
+          changed="$(git diff --name-only "$BASE" "$HEAD")"
+          printf '%s\n' "$changed"
+
+          # grep exits 1 when every line is inert, which is an answer here.
+          relevant="$(printf '%s\n' "$changed" | grep -vE "$inert" || true)"
+
+          if [ -n "$relevant" ]; then
+            printf '%s\n' "relevant=true" >>"$GITHUB_OUTPUT"
+            printf '%s\n' "outside documentation:"
+            printf '%s\n' "$relevant" | sed 's/^/  /'
+          else
+            printf '%s\n' "relevant=false" >>"$GITHUB_OUTPUT"
+            printf '%s\n' "documentation only — the checks below will report as skipped"
+          fi
+
   test:
     name: Build, vet and test
+    needs: [changes]
+    if: needs.changes.outputs.relevant != 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -71,6 +126,8 @@ jobs:
 
   lint:
     name: Lint
+    needs: [changes]
+    if: needs.changes.outputs.relevant != 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -90,6 +147,8 @@ jobs:
 
   vuln:
     name: Reachable vulnerabilities
+    needs: [changes]
+    if: needs.changes.outputs.relevant != 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -122,6 +181,8 @@ jobs:
   # another job's name means nothing on the pull request says it ran.
   syntax:
     name: Workflow syntax
+    needs: [changes]
+    if: needs.changes.outputs.relevant != 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -143,6 +204,8 @@ jobs:
 
   audit:
     name: Workflow permissions
+    needs: [changes]
+    if: needs.changes.outputs.relevant != 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -175,7 +238,9 @@ jobs:
 
   dispatch-release:
     name: Dispatch release
-    needs: [test, lint, vuln, syntax, audit]
+    needs: [changes, test, lint, vuln, syntax, audit]
+    # The filter reports every push to main as relevant, so none of the five
+    # above is ever skipped on this path and a plain `needs` is enough.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
