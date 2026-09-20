@@ -133,3 +133,32 @@ jobs:
               exit 1
             fi
           done
+
+      # Tell the module proxy the version exists.
+      #
+      # The step above uses GOPROXY=direct, so nothing in this workflow ever
+      # asks proxy.golang.org for the new version — and a consumer that reads
+      # the proxy therefore does not see it. Measured on v0.1.2: Renovate found
+      # the version in `@v/list` and still proposed no upgrade, because
+      # `@latest` was cached at the previous tag.
+      #
+      # Requesting the version's own .info is what makes the proxy fetch and
+      # cache it. `@latest` has its own TTL and catches up on its own; this at
+      # least starts the clock at release time rather than at whenever somebody
+      # happens to ask.
+      - name: Warm the module proxy
+        run: |
+          set -euo pipefail
+
+          tag="$(git tag --points-at HEAD | head -1)"
+          [ -n "$tag" ] || exit 0
+
+          url="https://proxy.golang.org/github.com/oleg-tkachuk/pulumi-kit/@v/${tag}.info"
+
+          # A proxy that is slow or down must not fail a release that is
+          # already tagged and published, so this reports and moves on.
+          if curl -sf --retry 3 --retry-delay 5 -o /dev/null "$url"; then
+            printf '%s\n' "proxy has ${tag}"
+          else
+            printf '%s\n' "::warning::the module proxy did not accept ${tag} yet; it will catch up"
+          fi
