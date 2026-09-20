@@ -7,7 +7,7 @@ Run them without installing anything:
 
 ```sh
 go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@latest -h
-go run github.com/oleg-tkachuk/pulumi-kit/cmd/stack@latest
+go run github.com/oleg-tkachuk/pulumi-kit/cmd/stack@latest -h
 ```
 
 ## `target`

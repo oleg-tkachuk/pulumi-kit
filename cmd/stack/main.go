@@ -30,11 +30,26 @@ func main() {
 	}
 }
 
-// Usage is the message a wrong argument list gets, held in one place because
-// three commands share it.
+// Usage is what a caller sees, whether it was asked for or not.
 const Usage = "usage: stack <exists|ensure|ref> <project-dir> <stack>"
 
+// HelpFlags are the ways a caller asks what this takes.
+//
+// Answering with an error was the defect. cmd/target exits zero for -h and
+// this did not, so two commands in one kit disagreed — and the message
+// arrived on stderr under an `error:` prefix, which says the request failed
+// when it was answered.
+var HelpFlags = map[string]bool{"-h": true, "--help": true, "help": true}
+
 func run(ctx context.Context, args []string, out io.Writer) error {
+	if len(args) == 1 && HelpFlags[args[0]] {
+		fmt.Fprintln(out, Usage)
+
+		return nil
+	}
+
+	// A wrong argument list stays an error: that is a caller with a bug, not
+	// a person asking a question.
 	if len(args) != 3 {
 		return errors.New(Usage)
 	}
