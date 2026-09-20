@@ -43,6 +43,20 @@ real paths — checked by adding `\.go$` to it and watching the gate fail.
 A push to `main` is always relevant, so the release path is never gated on a
 diff computation.
 
+## Timeouts
+
+Every job allows five minutes. They finish in twenty to forty-five seconds, so
+five is generous and the point is to fail fast: a `setup-go` that hung held a
+job for the whole ten minutes the workflow used to allow while its three
+neighbours had finished in under twenty-five seconds.
+
+`setup-go` also has a two-minute timeout of its own, so that failure names the
+step rather than reporting the job as slow.
+
+The release job keeps ten minutes. It installs npm dependencies, computes a
+version from the whole history and fetches the module twice; cutting it to five
+would risk aborting a release that was working.
+
 ## Runners
 
 Pinned to `ubuntu-24.04` rather than `ubuntu-latest`, which warned on every job
