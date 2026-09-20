@@ -21,6 +21,19 @@ the audits that need the API. `--persona=regular` rather than `auditor`: the
 auditor persona is documented as tolerating false positives, which is the wrong
 contract for a blocking gate.
 
+## Which of them a merge waits for
+
+Six are required by `main`'s protection: `Changed paths`, `Build, vet and test`,
+`Lint`, `Reachable vulnerabilities`, `Workflow syntax` and `Workflow
+permissions`. `Dispatch release` is not — it never runs on a pull request.
+
+A **skipped** required check does not block a merge, which is what makes the
+gate below safe.
+
+Renaming a job renames its check, and a required check that never reports again
+blocks every open pull request — so a rename is a protection change in the same
+breath.
+
 ## A documentation change runs nothing
 
 `Changed paths` diffs the pull request and every other job is gated on its
@@ -85,6 +98,7 @@ Actions are pinned by commit SHA with the tag in a comment. Dependabot keeps
 the module, the actions and npm current — see
 [dependabot.yml](../.github/dependabot.yml).
 
-The three tool versions in `ci.yaml`'s `env` are **bumped by hand**: they carry
-`# renovate:` annotations in the style `hetzner-iac` uses, but nothing in this
-repository reads them yet. Dependabot does not look inside a workflow's `env`.
+The three tool versions in `ci.yaml`'s `env` are **bumped by hand**. They carry
+`# renovate:` annotations, which nothing here reads yet — they are there so that
+adding Renovate later is one file rather than an audit of every pin. Dependabot
+does not look inside a workflow's `env`.
