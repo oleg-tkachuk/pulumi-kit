@@ -28,9 +28,7 @@ Six are required by `main`'s protection: `Changed paths`, `Build, vet and test`,
 permissions`. `Dispatch release` is not — it never runs on a pull request.
 
 A **skipped** required check does not block a merge, which is what makes the
-gate below safe. Measured rather than assumed: a documentation-only pull request
-in `hetzner-iac` merged with fourteen skipped required checks on a branch with
-`enforce_admins` on.
+gate below safe.
 
 Renaming a job renames its check, and a required check that never reports again
 blocks every open pull request — so a rename is a protection change in the same
@@ -100,6 +98,7 @@ Actions are pinned by commit SHA with the tag in a comment. Dependabot keeps
 the module, the actions and npm current — see
 [dependabot.yml](../.github/dependabot.yml).
 
-The three tool versions in `ci.yaml`'s `env` are **bumped by hand**: they carry
-`# renovate:` annotations in the style `hetzner-iac` uses, but nothing in this
-repository reads them yet. Dependabot does not look inside a workflow's `env`.
+The three tool versions in `ci.yaml`'s `env` are **bumped by hand**. They carry
+`# renovate:` annotations, which nothing here reads yet — they are there so that
+adding Renovate later is one file rather than an audit of every pin. Dependabot
+does not look inside a workflow's `env`.
