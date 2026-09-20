@@ -12,6 +12,16 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Every job pins the runner rather than taking `ubuntu-latest`, which each of
+# them warned about:
+#
+#   The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026
+#
+# A floating label means the OS under these jobs changes on a date nobody here
+# chose — the same argument this repository makes about `@latest` for its own
+# module. Pinned, that migration is a commit. It is spelled per job because
+# `runs-on` reads neither `env` nor a workflow-level default.
+#
 # Pinned tools. The `renovate:` annotations are the style hetzner-iac uses and
 # are inert here until a bot reads them: .github/dependabot.yml covers the
 # module, the actions and npm, and not these three, so they are bumped by hand.
@@ -26,7 +36,7 @@ env:
 jobs:
   test:
     name: Build, vet and test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -61,7 +71,7 @@ jobs:
 
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -80,7 +90,7 @@ jobs:
 
   vuln:
     name: Reachable vulnerabilities
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -101,9 +111,18 @@ jobs:
           go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
           govulncheck ./...
 
-  workflows:
-    name: Workflows
-    runs-on: ubuntu-latest
+  # Two jobs over the same files, and the halves do not overlap. actionlint
+  # covers whether a workflow is correct at all — schema, expression syntax,
+  # `needs:` naming a job that exists, and shellcheck over every `run:` block.
+  # zizmor covers security: unpinned actions, leaked credentials, injectable
+  # expressions.
+  #
+  # Separate jobs rather than two steps in one, for the reason hetzner-iac
+  # records: a job name is a required check, and burying an audit inside
+  # another job's name means nothing on the pull request says it ran.
+  syntax:
+    name: Workflow syntax
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -116,28 +135,49 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # Syntax and expressions first: zizmor reads a file actionlint would
-      # have rejected, so a broken workflow should fail as a syntax error
-      # rather than as a confusing audit result.
       - name: actionlint
         run: |
           set -euo pipefail
           go install "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}"
           actionlint
 
-      # The supply-chain audit: unpinned actions, dangerous triggers, an
-      # over-broad token.
+  audit:
+    name: Workflow permissions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # These workflows are the part of the repository that runs with a token,
+      # so they are worth auditing as code rather than trusted as config.
+      #
+      # regular, not auditor: the auditor persona is documented as tolerating
+      # false positives, which is the wrong contract for a blocking gate — it
+      # would be red forever and then ignored. Exceptions live in
+      # .github/zizmor.yml, each with the reason it stands.
+      #
+      # pipx run rather than install, so nothing is left on the runner between
+      # steps and the version in the command is the version that executes.
       - name: zizmor
+        env:
+          # Without a token zizmor runs offline and says so, skipping the
+          # audits that need the API — resolving an action's ref among them.
+          # Verified clean in both modes before this was turned on.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          pipx install "zizmor==${ZIZMOR_VERSION}"
-          zizmor --persona=regular .github/workflows
+          pipx run "zizmor==${ZIZMOR_VERSION}" \
+            --config .github/zizmor.yml --persona=regular --format=plain .github/workflows/
 
   dispatch-release:
     name: Dispatch release
-    needs: [test, lint, vuln, workflows]
+    needs: [test, lint, vuln, syntax, audit]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: write # POST /repos/{owner}/{repo}/dispatches needs write
