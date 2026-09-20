@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/pulumi"
@@ -29,7 +31,8 @@ func TestRun_AnswersAHelpRequest(t *testing.T) {
 }
 
 func TestRun_RefusesBeforeItReachesPulumi(t *testing.T) {
-	t.Parallel()
+	// Not parallel: onPath sets PATH for the process.
+	onPath(t)
 
 	// Every one of these has to fail without a backend, or the checks are not
 	// where they are claimed to be.
@@ -98,4 +101,20 @@ func TestExitCode_SeparatesAbsenceFromFailure(t *testing.T) {
 		"a backend that did not answer is not an answer")
 
 	assert.Equal(t, ExitFailed, exitCode(errors.New(Usage)))
+}
+
+// onPath puts a file named after the CLI on PATH, so a test of argument
+// handling reaches the argument handling.
+//
+// Without it these cases asserted whatever the host happened to have. CI on
+// ubuntu-24.04 passed because that image ships the Pulumi CLI; ubuntu-26.04
+// does not, and eleven assertions failed on a message about PATH. The checks
+// were right and the test was reading the environment.
+func onPath(t *testing.T) {
+	t.Helper()
+
+	dir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "pulumi"), []byte("#!/bin/sh\n"), 0o700))
+	t.Setenv("PATH", dir)
 }
