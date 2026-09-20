@@ -87,7 +87,11 @@ would risk aborting a release that was working.
 ## Runners
 
 Pinned to `ubuntu-24.04` rather than `ubuntu-latest`, which warned on every job
-that it migrates to Ubuntu 26 on 19 October 2026. A floating label changes the
+that it migrates to Ubuntu 26 on 19 October 2026. Renovate proposes the move as
+a pull request, which is the point of pinning — and
+[actionlint.yaml](../.github/actionlint.yaml) declares `ubuntu-26.04` because
+actionlint's built-in label list is behind GitHub: it refuses a label whose
+runner demonstrably exists, and v1.7.12 is the newest release. A floating label changes the
 OS under these jobs on a date nobody here chose; pinned, that migration is a
 commit. Spelled per job because `runs-on` reads neither `env` nor a
 workflow-level default.
