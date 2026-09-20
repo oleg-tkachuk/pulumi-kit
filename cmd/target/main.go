@@ -38,6 +38,7 @@ type options struct {
 	dir          string
 	stack        string
 	groupPackage string
+	list         bool
 }
 
 func run(ctx context.Context, args []string, out, errOut io.Writer) error {
@@ -67,6 +68,17 @@ func run(ctx context.Context, args []string, out, errOut io.Writer) error {
 		return err
 	}
 
+	// Answering the question the refusal used to answer. Until this existed,
+	// seeing what a stack holds meant mistyping a selector on purpose — the
+	// list was only ever reachable through an error.
+	if opts.list {
+		for _, name := range target.Names(resources) {
+			fmt.Fprintln(out, name)
+		}
+
+		return nil
+	}
+
 	urns, err := target.MatchAll(resources, selector, opts.groupPackage)
 	if err != nil {
 		return err
@@ -90,8 +102,11 @@ func parse(args []string, errOut io.Writer) (options, string, error) {
 	flags.StringVar(&opts.stack, "stack", "", "the stack to read (required)")
 	flags.StringVar(&opts.groupPackage, "group-package", "",
 		"the package a component's type token begins with, for "+target.GroupPrefix+" selectors")
+	flags.BoolVar(&opts.list, "list", false,
+		"print what the stack holds, as Type:name, and take no selector")
 	flags.Usage = func() {
 		fmt.Fprint(errOut, "usage: target [flags] <selector[,selector…]>\n"+
+			"       target [flags] -list\n"+
 			"  selector: a resource name, Type:name, or "+target.GroupPrefix+"Type\n"+
 			"            several, comma-separated, resolve to every one of their URNs\n")
 		flags.PrintDefaults()
@@ -99,6 +114,17 @@ func parse(args []string, errOut io.Writer) (options, string, error) {
 
 	if err := flags.Parse(args); err != nil {
 		return options{}, "", err
+	}
+
+	// -list answers a question rather than resolving a name, so it takes no
+	// selector — and refuses one rather than ignoring it, which would leave a
+	// caller believing it had filtered the list.
+	if opts.list {
+		if flags.NArg() != 0 {
+			return options{}, "", errors.New("-list takes no selector")
+		}
+
+		return opts, "", nil
 	}
 
 	if flags.NArg() != 1 {

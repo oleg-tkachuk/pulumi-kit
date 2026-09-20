@@ -91,3 +91,45 @@ func onPath(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "pulumi"), []byte("#!/bin/sh\n"), 0o700))
 	t.Setenv("PATH", dir)
 }
+
+func TestParse_ListTakesNoSelector(t *testing.T) {
+	t.Parallel()
+
+	// Refused rather than ignored: ignoring it would leave a caller believing
+	// the list had been filtered.
+	var errOut bytes.Buffer
+
+	_, _, err := parse([]string{"-list", "-stack", "dev", "traefik"}, &errOut)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "-list takes no selector")
+}
+
+func TestParse_ListNeedsNoSelector(t *testing.T) {
+	t.Parallel()
+
+	var errOut bytes.Buffer
+
+	opts, selector, err := parse([]string{"-list", "-stack", "dev"}, &errOut)
+	require.NoError(t, err)
+	assert.True(t, opts.list)
+	assert.Empty(t, selector)
+}
+
+func TestRun_ListStillValidatesBeforeItReachesPulumi(t *testing.T) {
+	// Not parallel: onPath sets PATH for the process.
+	onPath(t)
+
+	// -list reads a stack, so the stack name and the directory are checked the
+	// same way. A mode that skipped them would reach exec with neither.
+	for name, tc := range map[string][]string{
+		"no stack":           {"-list"},
+		"a traversing stack": {"-list", "-stack", "../other"},
+	} {
+		var out, errOut bytes.Buffer
+
+		err := run(context.Background(), tc, &out, &errOut)
+		require.Error(t, err, name)
+		assert.Contains(t, err.Error(), "is not a stack name", name)
+		assert.Empty(t, out.String(), name)
+	}
+}

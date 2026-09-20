@@ -5,6 +5,7 @@ name the stack does not hold.
 
 ```bash
 target -dir <project-dir> -stack <stack> [-group-package <pkg>] <selector[,selector…]>
+target -dir <project-dir> -stack <stack> -list
 ```
 
 | Selector | Means |
@@ -14,6 +15,35 @@ target -dir <project-dir> -stack <stack> [-group-package <pkg>] <selector[,selec
 | `group:Ingress` | a component resource and its whole subtree |
 | `group:Network:net-a` | one of two components of the same type |
 | `traefik,cert-manager` | both, as one run with two `--target` flags |
+
+## `-list`
+
+Prints what the stack holds, one selector per line:
+
+```
+Cluster:platform-dev
+Firewall:platform-dev-firewall
+Network:platform-dev-network
+Release:traefik
+```
+
+It exists because that list was previously reachable only through a **failure**:
+the refusal below carries it, so seeing a stack's contents meant mistyping a
+selector on purpose.
+
+It is the same list, from the same function, and a test asserts that — two
+copies would drift, and the drift would be invisible because each would look
+right on its own.
+
+**Selectors, not resources.** The lines are deduplicated, so a stack of 24
+resources can print 22 lines, and one selector may match more than one
+resource: a component and a provider resource under it can share a type leaf
+and a name, as `Network:platform-dev-network` does. Targeting it takes both,
+which is what the list says it will.
+
+`-list` takes no selector and refuses one rather than ignoring it — ignoring it
+would leave a caller believing the list had been filtered. The stack name and
+the project directory are still checked first.
 
 ## Why it exists
 

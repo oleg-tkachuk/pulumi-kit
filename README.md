@@ -23,7 +23,7 @@ exists because Pulumi's own answer to a mistake is silence.
 
 | Command | What it answers |
 |---------|-----------------|
-| [`target`](cmd/target) | which URNs does this name mean — and does it name anything at all |
+| [`target`](cmd/target) | which URNs does this name mean, does it name anything at all, and what is there to name |
 | [`stack`](cmd/stack) | does this stack exist, make sure it does, what is its reference |
 
 ## Quick start

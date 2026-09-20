@@ -340,6 +340,29 @@ func TypeLeaf(token string) string {
 	return token
 }
 
+// Names is what the stack holds, as the selectors that would each match one
+// thing: `Release:traefik`, `LoadBalancer:ingress`.
+//
+// One function because two callers must agree exactly. It is what a mistyped
+// selector is answered with, and what -list prints — and the whole value of
+// -list is that an operator no longer has to provoke that error to see the
+// list. Two copies would drift, and the drift would be invisible: both would
+// look right in isolation.
+//
+// Nothing is filtered out. A list that hid the stack's own node and its
+// providers would be tidier and would also be a judgement about what an
+// operator is allowed to look for.
+func Names(resources []Resource) []string {
+	qualified := make([]string, 0, len(resources))
+	for _, resource := range resources {
+		qualified = append(qualified, TypeLeaf(resource.Type)+":"+resource.Name)
+	}
+
+	slices.Sort(qualified)
+
+	return slices.Compact(qualified)
+}
+
 // noMatch is the error an operator reads, so it carries the list.
 //
 // Qualified as Type:name rather than bare names, for two reasons. It says what
@@ -351,17 +374,10 @@ func TypeLeaf(token string) string {
 // providers would be tidier and would also be a judgement about what an
 // operator is allowed to look for.
 func noMatch(resources []Resource, selector string) error {
-	qualified := make([]string, 0, len(resources))
-	for _, resource := range resources {
-		qualified = append(qualified, TypeLeaf(resource.Type)+":"+resource.Name)
-	}
-
-	slices.Sort(qualified)
-
 	return fmt.Errorf(
 		"%q matches nothing in this stack, and a --target that matches nothing "+
 			"is an apply that reports success and does nothing.\nThis stack holds: %s",
-		selector, strings.Join(slices.Compact(qualified), ", "))
+		selector, strings.Join(Names(resources), ", "))
 }
 
 // Resources asks the stack what it holds.
