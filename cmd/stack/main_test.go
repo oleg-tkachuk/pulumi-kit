@@ -116,3 +116,31 @@ func TestRun_RefusesBeforeItReachesPulumi(t *testing.T) {
 		assert.Empty(t, out.String(), "%s wrote to stdout", name)
 	}
 }
+
+func TestRun_AnswersAHelpRequest(t *testing.T) {
+	t.Parallel()
+
+	// The defect: this printed the usage under an `error:` prefix and exited
+	// 1, while cmd/target exited 0 for the same request. Two commands in one
+	// kit disagreeing about whether a question is a failure.
+	for flag := range HelpFlags {
+		var out bytes.Buffer
+
+		err := run(context.Background(), []string{flag}, &out)
+		require.NoError(t, err, flag)
+		assert.Contains(t, out.String(), Usage, flag)
+	}
+}
+
+func TestRun_AHelpFlagAmongArgumentsIsNotAHelpRequest(t *testing.T) {
+	t.Parallel()
+
+	// `stack -h dir name` is a caller that built its argument list wrong, and
+	// printing the usage with exit 0 would let that pass as success.
+	var out bytes.Buffer
+
+	err := run(context.Background(), []string{"-h", "infra/cluster", "dev"}, &out)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown command")
+	assert.Empty(t, out.String())
+}
