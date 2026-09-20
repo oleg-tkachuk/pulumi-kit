@@ -7,12 +7,26 @@ Five jobs on every pull request, in [ci.yaml](../.github/workflows/ci.yaml).
 | Build, vet and test | `gofmt`, `go vet`, `go test -race`, and prints total coverage |
 | Lint | `golangci-lint` with the set in [.golangci.yaml](../.golangci.yaml), which includes `gosec` |
 | Reachable vulnerabilities | `govulncheck`: an advisory only when a vulnerable symbol is actually called |
-| Workflows | `actionlint` for syntax, then `zizmor` for unpinned actions, dangerous triggers and over-broad tokens |
-| Dispatch release | on a push to `main` only, after the four above — see [releases.md](releases.md) |
+| Workflow syntax | `actionlint`: schema, expression syntax, `needs:` naming a job that exists, and shellcheck over every `run:` block |
+| Workflow permissions | `zizmor`: unpinned actions, dangerous triggers, over-broad tokens — exceptions in [zizmor.yml](../.github/zizmor.yml) |
+| Dispatch release | on a push to `main` only, after the five above — see [releases.md](releases.md) |
 
-`actionlint` runs before `zizmor` on purpose: `zizmor` will read a file
-`actionlint` would have rejected, so a broken workflow should fail as a syntax
-error rather than as a confusing audit result.
+The two workflow jobs are separate rather than two steps in one, because a job
+name is a required check: an audit buried inside another job's name leaves
+nothing on the pull request saying it ran.
+
+`zizmor` runs with `GH_TOKEN`, because without one it runs offline and skips
+the audits that need the API. `--persona=regular` rather than `auditor`: the
+auditor persona is documented as tolerating false positives, which is the wrong
+contract for a blocking gate.
+
+## Runners
+
+Pinned to `ubuntu-24.04` rather than `ubuntu-latest`, which warned on every job
+that it migrates to Ubuntu 26 on 19 October 2026. A floating label changes the
+OS under these jobs on a date nobody here chose; pinned, that migration is a
+commit. Spelled per job because `runs-on` reads neither `env` nor a
+workflow-level default.
 
 ## Pins
 

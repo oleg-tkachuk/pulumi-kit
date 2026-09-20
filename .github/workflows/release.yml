@@ -28,7 +28,7 @@ concurrency:
 jobs:
   release:
     name: Compute the tag and publish the release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write # semantic-release pushes the tag; gh creates the release
@@ -40,7 +40,7 @@ jobs:
       # of the default branch, which is a BRANCH — and semantic-release has to
       # be on one of its configured release branches to release at all. The
       # dispatched sha is printed below instead, which is what it was for.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # semantic-release derives the next version from the commit history.
           fetch-depth: 0
