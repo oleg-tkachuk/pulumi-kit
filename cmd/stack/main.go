@@ -23,8 +23,19 @@ func main() {
 	}
 }
 
+// The three commands, named once because the switch below and the two messages
+// that list them must not drift apart.
+const (
+	CommandExists = "exists"
+	CommandEnsure = "ensure"
+	CommandRef    = "ref"
+)
+
+// Commands is the set, in the order the messages list them.
+var Commands = []string{CommandExists, CommandEnsure, CommandRef}
+
 // Usage is what a caller sees, whether it was asked for or not.
-const Usage = "usage: stack <exists|ensure|ref> <project-dir> <stack>"
+var Usage = fmt.Sprintf("usage: stack <%s> <project-dir> <stack>", strings.Join(Commands, "|"))
 
 // HelpFlags are the ways a caller asks what this takes.
 //
@@ -57,10 +68,10 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 	}
 
 	switch command {
-	case "exists":
+	case CommandExists:
 		return exists(ctx, dir, name)
 
-	case "ensure":
+	case CommandEnsure:
 		state, err := stack.Ensure(ctx, dir, name)
 		if err != nil {
 			return err
@@ -70,7 +81,7 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 
 		return nil
 
-	case "ref":
+	case CommandRef:
 		reference, err := stack.Reference(ctx, dir, name)
 		if err != nil {
 			return err
@@ -81,7 +92,7 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		return nil
 
 	default:
-		return fmt.Errorf("unknown command %q: exists, ensure or ref", command)
+		return fmt.Errorf("unknown command %q: %s", command, strings.Join(Commands, ", "))
 	}
 }
 

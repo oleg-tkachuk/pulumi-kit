@@ -1,0 +1,115 @@
+# golangci-lint v2 configuration, taken from hetzner-iac and trimmed to what
+# this repository has.
+#
+# Deliberately a working set rather than everything available. A linter set
+# that produces hundreds of findings on day one gets `--no-verify`d and then
+# ignored; this one is chosen so a clean run is achievable and a finding means
+# something.
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+
+  enable:
+    # Correctness
+    - bodyclose
+    - contextcheck
+    - durationcheck
+    - errorlint      # %w and errors.Is/As, so error wrapping actually works
+    - exhaustive
+    - makezero
+    - nilerr
+    - noctx
+    # Complexity
+    - cyclop
+    - funlen
+    - gocognit
+    - nestif
+    # Clarity
+    - dupl
+    - goconst
+    - gocritic
+    - misspell
+    - nakedret
+    - nolintlint     # a //nolint with no explanation is a silenced finding
+    - revive
+    - unconvert
+    - unparam
+    - wastedassign
+    - whitespace
+    - wsl_v5
+    # Security
+    - gosec
+
+  settings:
+    funlen:
+      # Statements, and lines not at all. Functions here are long from
+      # comments, which are most of some files, rather than from complexity.
+      lines: -1
+      statements: 50
+
+    gocognit:
+      # Branching, which is the measure that says something about logic.
+      min-complexity: 20
+
+    cyclop:
+      max-complexity: 15
+
+    nestif:
+      min-complexity: 5
+
+    exhaustive:
+      default-signifies-exhaustive: true
+
+    govet:
+      enable-all: true
+      disable:
+        # Field alignment optimises struct padding at the cost of grouping
+        # related fields together.
+        - fieldalignment
+
+    revive:
+      rules:
+        - name: exported
+          disabled: false
+        - name: package-comments
+          disabled: false
+
+    errcheck:
+      exclude-functions:
+        # Writes to stdout and stderr. Checking each Fprintln turns a
+        # three-line command into error plumbing for a failure mode that is
+        # "the terminal went away".
+        - fmt.Fprint
+        - fmt.Fprintln
+        - fmt.Fprintf
+
+  exclusions:
+    rules:
+      # Tests legitimately repeat structure, use long literals, and assert
+      # against values that would be constants in production code. A table of
+      # cases is long and branchy by construction, and both are the point.
+      - path: _test\.go
+        linters:
+          - dupl
+          - goconst
+          - gosec
+          - unparam
+          - cyclop
+          - funlen
+          - gocognit
+          - nestif
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  # 0 = report everything. The defaults cap at 3 per linter, which hides the
+  # scale of a problem and makes a fix look complete when it is not.
+  max-issues-per-linter: 0
+  max-same-issues: 0

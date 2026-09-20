@@ -12,6 +12,17 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Pinned tools. The `renovate:` annotations are the style hetzner-iac uses and
+# are inert here until a bot reads them: .github/dependabot.yml covers the
+# module, the actions and npm, and not these three, so they are bumped by hand.
+env:
+  # renovate: datasource=go depName=golang.org/x/vuln
+  GOVULNCHECK_VERSION: "v1.8.0"
+  # renovate: datasource=go depName=github.com/rhysd/actionlint
+  ACTIONLINT_VERSION: "v1.7.12"
+  # renovate: datasource=pypi depName=zizmor
+  ZIZMOR_VERSION: "1.30.1"
+
 jobs:
   test:
     name: Build, vet and test
@@ -43,11 +54,88 @@ jobs:
       # -race because both commands shell out and parse, and a data race in a
       # tool that decides what gets destroyed is not a failure to discover
       # from behaviour.
-      - run: go test -race ./...
+      - run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Coverage per package
+        run: go tool cover -func=coverage.out | tail -1
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # gosec is one of the linters in .golangci.yaml, so this covers the
+      # security pass over the Go code as well.
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
+
+  vuln:
+    name: Reachable vulnerabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # Reachable, not merely present: govulncheck reports an advisory only
+      # when a vulnerable symbol is actually called from this code.
+      - name: govulncheck
+        run: |
+          set -euo pipefail
+          go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
+          govulncheck ./...
+
+  workflows:
+    name: Workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # Syntax and expressions first: zizmor reads a file actionlint would
+      # have rejected, so a broken workflow should fail as a syntax error
+      # rather than as a confusing audit result.
+      - name: actionlint
+        run: |
+          set -euo pipefail
+          go install "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}"
+          actionlint
+
+      # The supply-chain audit: unpinned actions, dangerous triggers, an
+      # over-broad token.
+      - name: zizmor
+        run: |
+          set -euo pipefail
+          pipx install "zizmor==${ZIZMOR_VERSION}"
+          zizmor --persona=regular .github/workflows
 
   dispatch-release:
     name: Dispatch release
-    needs: [test]
+    needs: [test, lint, vuln, workflows]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5

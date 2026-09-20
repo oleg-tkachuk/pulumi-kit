@@ -1,0 +1,30 @@
+# Dependabot rather than Renovate, because it needs no token: this repository
+# has no secret to give a bot, and the three tool pins in ci.yaml's env are
+# bumped by hand.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: ci
+
+  # semantic-release and its preset, which the release workflow installs with
+  # `npm ci` from the committed lockfile.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: ci

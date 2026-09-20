@@ -46,8 +46,8 @@ func run(ctx context.Context, args []string, out, errOut io.Writer) error {
 		return err
 	}
 
-	if err := pulumi.ValidateStackName(opts.stack); err != nil {
-		return err
+	if nameErr := pulumi.ValidateStackName(opts.stack); nameErr != nil {
+		return nameErr
 	}
 
 	directory, err := pulumi.ProjectDirectory(opts.dir)
