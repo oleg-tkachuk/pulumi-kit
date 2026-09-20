@@ -92,7 +92,7 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.relevant != 'false'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     permissions:
       contents: read
     steps:
@@ -100,7 +100,12 @@ jobs:
         with:
           persist-credentials: false
 
+      # Its own timeout, because this is the step that hung: `setup-go` sat
+      # for the whole ten minutes the job used to allow, and the three jobs
+      # beside it had finished in under twenty-five seconds. A step timeout
+      # names the culprit instead of reporting the job as slow.
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        timeout-minutes: 2
         with:
           go-version-file: go.mod
 
@@ -129,7 +134,7 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.relevant != 'false'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     permissions:
       contents: read
     steps:
@@ -150,7 +155,7 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.relevant != 'false'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     permissions:
       contents: read
     steps:
@@ -184,7 +189,7 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.relevant != 'false'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     permissions:
       contents: read
     steps:
@@ -207,7 +212,7 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.relevant != 'false'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     permissions:
       contents: read
     steps:
