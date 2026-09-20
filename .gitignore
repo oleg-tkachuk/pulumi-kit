@@ -34,3 +34,6 @@ go.work.sum
 # Binaries from `go build ./...`, which land in the working directory.
 /stack
 /target
+
+# Node, for semantic-release.
+node_modules/

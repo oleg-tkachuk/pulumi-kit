@@ -1,0 +1,109 @@
+name: Release
+
+# Dispatched by ci.yaml once the tests on a push to main have passed.
+#
+# workflow_run is the obvious trigger and is refused by zizmor's
+# dangerous-triggers audit, whose own docs say no guard satisfies it. And a
+# plain `push` trigger would not help: GitHub starts no workflow run from an
+# event GITHUB_TOKEN caused, which is the same reason the tag pushed below
+# cannot chain a workflow of its own. repository_dispatch is one of the two
+# documented exceptions that always create a run, so CI dispatches this with
+# its own GITHUB_TOKEN — no extra credential, no dangerous trigger.
+#
+# Deliberately no workflow_dispatch: it would let a release be cut from an
+# untested main with one click, which is what the gate in ci.yaml prevents.
+on:
+  repository_dispatch:
+    types: [release]
+
+permissions: {}
+
+concurrency:
+  # Two dispatches close together would both compute "next version" from the
+  # same last tag and could push conflicting ones. Never cancel-in-progress: a
+  # run killed mid-push can leave a tag with no release behind it.
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Compute the tag and publish the release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # semantic-release pushes the tag; gh creates the release
+    steps:
+      # No persist-credentials: false — semantic-release pushes the tag it
+      # creates, so this is the one checkout here that needs its credentials.
+      #
+      # Deliberately no `ref:`. A repository_dispatch run checks out the head
+      # of the default branch, which is a BRANCH — and semantic-release has to
+      # be on one of its configured release branches to release at all. The
+      # dispatched sha is printed below instead, which is what it was for.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
+        with:
+          # semantic-release derives the next version from the commit history.
+          fetch-depth: 0
+
+      # A dispatched run is not linked to its trigger in the UI the way a
+      # workflow_run is, so without this the run says nothing about where it
+      # came from.
+      - name: Say what dispatched this
+        env:
+          SHA: ${{ github.event.client_payload.sha }}
+          CI_RUN: ${{ github.event.client_payload.ci_run_id }}
+        run: printf 'dispatched by CI run %s for commit %s\n' "${CI_RUN:-unknown}" "${SHA:-unknown}"
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      # The lockfile pins semantic-release and its preset, so this installs
+      # the versions committed here rather than a marketplace action's own.
+      - run: npm ci
+
+      - run: npx semantic-release --no-ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Read from git rather than parsing semantic-release's prose: it tags the
+      # commit that was checked out, so no new tag here means no release was
+      # due and there is nothing to publish.
+      - name: Publish the release for the tag it just pushed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          tag="$(git tag --points-at HEAD | head -1)"
+
+          if [ -z "$tag" ]; then
+            printf '%s\n' "no new tag on this commit — no release was due"
+            exit 0
+          fi
+
+          # A Go module needs no upload: the proxy serves whatever the tag
+          # points at. The release is notes for people, shaped by
+          # .github/release.yml.
+          gh release create "$tag" --generate-notes --verify-tag
+
+      # What a consumer actually does, against the tag that was just made.
+      #
+      # GOPROXY=direct on purpose: proxy.golang.org caches on first request, so
+      # going through it here would be a race with its own warm-up rather than
+      # a check of the tag. Direct asks git, which already has the answer.
+      - name: Prove the tag is consumable
+        env:
+          GOPROXY: direct
+          GOFLAGS: -mod=mod
+        run: |
+          set -euo pipefail
+
+          tag="$(git tag --points-at HEAD | head -1)"
+          [ -n "$tag" ] || exit 0
+
+          for command in stack target; do
+            printf '%s\n' "go run .../cmd/${command}@${tag}"
+            go run "github.com/oleg-tkachuk/pulumi-kit/cmd/${command}@${tag}" -h 2>&1 | head -3 || true
+          done
