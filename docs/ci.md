@@ -40,8 +40,22 @@ reports skipped, and the pull request is green having run nothing.
 `internal/ci` reads the pattern out of the workflow and holds it to a table of
 real paths — checked by adding `\.go$` to it and watching the gate fail.
 
-A push to `main` is always relevant, so the release path is never gated on a
-diff computation.
+A push is diffed too, against the branch's previous head. It used to be
+exempt — "a push to main is always relevant" — and that exemption was the whole
+gap: merging a README ran the full build on `main` anyway, which is what the
+gate was asked to stop.
+
+Three cases have no usable base and mean everything: a push that created the
+branch reports all zeros, a force-push can name a commit the clone does not
+have, and a pull request event carries no previous head.
+
+`Dispatch release` runs under `always()`, because a documentation-only push
+skips the five checks and a plain `needs` would skip the dispatch with them —
+no release would ever be cut for a push that only edits prose. It still refuses
+to dispatch after a `failure` or a `cancelled`. Releasing from a push whose
+checks were skipped is not a hole: the code is byte-identical to the commit
+before it, which was checked. `internal/ci` pins both halves of that condition,
+because each has its own way of being quietly wrong.
 
 ## Timeouts
 

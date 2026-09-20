@@ -57,22 +57,37 @@ jobs:
 
       - id: filter
         env:
+          # A pull request has both ends of its own diff; a push reports the
+          # branch's previous head.
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
         run: |
           set -euo pipefail
 
           inert='(^|/)[^/]*\.md$|^docs/|^LICENSE$|^\.gitignore$|\.(png|jpe?g|svg|gif)$'
 
-          if [ -z "${BASE:-}" ]; then
-            # A push to main: always relevant, so the release path is never
-            # gated on a diff computation.
+          if [ -n "${BASE:-}" ]; then
+            from="$BASE"
+            to="$HEAD"
+          else
+            from="${BEFORE:-}"
+            to="$AFTER"
+          fi
+
+          # A push that created the branch reports all zeros, and a force-push
+          # can name a commit this clone does not have. Neither is a diff, so
+          # both mean everything.
+          zero=0000000000000000000000000000000000000000
+
+          if [ -z "$from" ] || [ "$from" = "$zero" ] || ! git cat-file -e "${from}^{commit}" 2>/dev/null; then
             printf '%s\n' "relevant=true" >>"$GITHUB_OUTPUT"
-            printf '%s\n' "push to main — running everything"
+            printf '%s\n' "no usable base (${from:-none}) — running everything"
             exit 0
           fi
 
-          changed="$(git diff --name-only "$BASE" "$HEAD")"
+          changed="$(git diff --name-only "$from" "$to")"
           printf '%s\n' "$changed"
 
           # grep exits 1 when every line is inert, which is an answer here.
@@ -244,9 +259,20 @@ jobs:
   dispatch-release:
     name: Dispatch release
     needs: [changes, test, lint, vuln, syntax, audit]
-    # The filter reports every push to main as relevant, so none of the five
-    # above is ever skipped on this path and a plain `needs` is enough.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # always(), because a documentation-only push skips the five above and a
+    # plain `needs` would skip this with them — and then no release is ever
+    # dispatched for a push that only edits prose. semantic-release decides
+    # whether anything is due; this only has to let it look.
+    #
+    # Releasing from a push whose checks were skipped is not a hole: the code
+    # is byte-identical to the commit before it, which was checked. What would
+    # be a hole is dispatching after a failure, so both failure and cancelled
+    # stop it.
+    if: >-
+      always() &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

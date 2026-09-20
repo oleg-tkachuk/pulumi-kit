@@ -75,3 +75,37 @@ func TestInertPaths_ClassifyTheTreeCorrectly(t *testing.T) {
 		assert.Equal(t, isInert, inert.MatchString(path), path)
 	}
 }
+
+// dispatchCondition is the `if:` of the job that starts a release, read as one
+// folded scalar ending at the next key.
+var dispatchCondition = regexp.MustCompile(`(?s)dispatch-release:.*?if: >-\n(.*?)\n    steps:`)
+
+// TestDispatchRelease_RunsAfterSkippedChecksButNeverAfterFailedOnes pins a
+// condition with two independent ways of being wrong.
+//
+// Without always(), a documentation-only push skips the five checks and this
+// job is skipped with them — so no release is ever dispatched for a push that
+// only edits prose, and the version that a `fix:` in the same push would have
+// cut never appears. Nothing reports that.
+//
+// Without the failure guard, always() is worse than the bug it fixes: a
+// release dispatched after a check failed.
+func TestDispatchRelease_RunsAfterSkippedChecksButNeverAfterFailedOnes(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile(filepath.Join("..", "..", workflow))
+	require.NoError(t, err)
+
+	found := dispatchCondition.FindStringSubmatch(string(raw))
+	require.NotNil(t, found, "%s has no dispatch-release condition to read", workflow)
+
+	condition := found[1]
+
+	assert.Contains(t, condition, "always()",
+		"without always() a documentation-only push dispatches no release at all")
+
+	for _, guard := range []string{"'failure'", "'cancelled'"} {
+		assert.Contains(t, condition, guard,
+			"always() without a %s guard dispatches a release after a check did not pass", guard)
+	}
+}
