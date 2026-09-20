@@ -1,5 +1,4 @@
-# golangci-lint v2 configuration, taken from hetzner-iac and trimmed to what
-# this repository has.
+# golangci-lint v2 configuration.
 #
 # Deliberately a working set rather than everything available. A linter set
 # that produces hundreds of findings on day one gets `--no-verify`d and then

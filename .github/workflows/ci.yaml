@@ -22,9 +22,10 @@ concurrency:
 # module. Pinned, that migration is a commit. It is spelled per job because
 # `runs-on` reads neither `env` nor a workflow-level default.
 #
-# Pinned tools. The `renovate:` annotations are the style hetzner-iac uses and
-# are inert here until a bot reads them: .github/dependabot.yml covers the
-# module, the actions and npm, and not these three, so they are bumped by hand.
+# Pinned tools, bumped by hand: .github/dependabot.yml covers the module, the
+# actions and npm, and not a workflow's own env. The `renovate:` annotations
+# are inert until something reads them, and they are here so that adding
+# Renovate later is one file rather than an audit of every pin.
 env:
   # renovate: datasource=go depName=golang.org/x/vuln
   GOVULNCHECK_VERSION: "v1.8.0"
@@ -196,9 +197,9 @@ jobs:
   # zizmor covers security: unpinned actions, leaked credentials, injectable
   # expressions.
   #
-  # Separate jobs rather than two steps in one, for the reason hetzner-iac
-  # records: a job name is a required check, and burying an audit inside
-  # another job's name means nothing on the pull request says it ran.
+  # Separate jobs rather than two steps in one: a job name is a required check,
+  # so burying an audit inside another job's name leaves nothing on the pull
+  # request saying it ran, and renaming that job silently retires the check.
   syntax:
     name: Workflow syntax
     needs: [changes]
