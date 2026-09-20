@@ -55,6 +55,12 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		return nil
 	}
 
+	// Before anything else, and after help: an absent CLI makes every command
+	// below impossible, whatever the arguments say.
+	if err := pulumi.Require(); err != nil {
+		return err
+	}
+
 	// A wrong argument list stays an error: that is a caller with a bug, not a
 	// person asking a question.
 	if len(args) != Arity {

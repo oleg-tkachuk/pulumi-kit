@@ -5,6 +5,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/pulumi"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,4 +59,25 @@ func TestRun_RefusesBeforeItReachesPulumi(t *testing.T) {
 		assert.Contains(t, err.Error(), tc.fails, name)
 		assert.Empty(t, out.String(), "%s wrote to stdout", name)
 	}
+}
+
+// Not parallel: it sets PATH for the process.
+func TestRun_RefusesWhenTheCLIIsAbsent(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	var out bytes.Buffer
+
+	err := run(context.Background(), []string{CommandEnsure, ".", "dev"}, &out)
+	require.ErrorIs(t, err, pulumi.ErrNotInstalled)
+	assert.Empty(t, out.String())
+}
+
+func TestRun_HelpWorksWithoutTheCLI(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	// Asking what a command takes must not require the thing it drives.
+	var out bytes.Buffer
+
+	require.NoError(t, run(context.Background(), []string{"-h"}, &out))
+	assert.Contains(t, out.String(), Usage)
 }
