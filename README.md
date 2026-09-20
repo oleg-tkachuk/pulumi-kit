@@ -1,6 +1,6 @@
 # pulumi-kit
 
-[![ci](https://github.com/oleg-tkachuk/pulumi-kit/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/oleg-tkachuk/pulumi-kit/actions/workflows/ci.yaml)
+[![CI](https://github.com/oleg-tkachuk/pulumi-kit/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/oleg-tkachuk/pulumi-kit/actions/workflows/ci.yaml)
 [![release](https://img.shields.io/github/v/release/oleg-tkachuk/pulumi-kit?sort=semver&label=release&cacheSeconds=3600)](https://github.com/oleg-tkachuk/pulumi-kit/releases/latest)
 [![go](https://img.shields.io/github/go-mod/go-version/oleg-tkachuk/pulumi-kit?logo=go&logoColor=white&label=go&cacheSeconds=3600)](go.mod)
 [![license: MIT](https://img.shields.io/github/license/oleg-tkachuk/pulumi-kit?label=license&cacheSeconds=3600)](LICENSE)
