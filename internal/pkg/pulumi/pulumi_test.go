@@ -1,6 +1,7 @@
 package pulumi_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -52,4 +53,47 @@ func TestProjectDirectory(t *testing.T) {
 	resolved, err := pulumi.ProjectDirectory(dir)
 	require.NoError(t, err)
 	assert.True(t, filepath.IsAbs(resolved), "pulumi --cwd needs an absolute path")
+}
+
+// executable writes a file named after the CLI into its own directory and
+// returns that directory, for a PATH that has one.
+func executable(t *testing.T) string {
+	t.Helper()
+
+	dir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, pulumi.Binary), []byte("#!/bin/sh\n"), 0o700))
+
+	return dir
+}
+
+// Not parallel, and none of the three below are: they set PATH for the
+// process, which every other test in this package reads.
+func TestRequire_SaysWhatIsMissingAndWhereToGetIt(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	err := pulumi.Require()
+	require.ErrorIs(t, err, pulumi.ErrNotInstalled)
+	assert.Contains(t, err.Error(), pulumi.InstallURL,
+		"the operator reading this is the one who has to act on it")
+}
+
+func TestRequire_PassesWhenItIsThere(t *testing.T) {
+	t.Setenv("PATH", executable(t))
+
+	assert.NoError(t, pulumi.Require())
+}
+
+// TestRun_RefusesRatherThanWrappingTheExecError is the backstop.
+//
+// Each command calls Require first, so this fires only for a caller that
+// reaches Run directly — which would otherwise get `exec: "pulumi":
+// executable file not found in $PATH` wrapped in whatever it was doing.
+func TestRun_RefusesWhenTheCLIIsAbsent(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	_, err := pulumi.Run(context.Background(), t.TempDir(), "stack", "ls")
+	require.ErrorIs(t, err, pulumi.ErrNotInstalled)
+	assert.NotContains(t, err.Error(), "executable file not found",
+		"the exec error is what this replaces")
 }

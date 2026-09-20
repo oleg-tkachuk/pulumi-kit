@@ -11,6 +11,7 @@ package pulumi
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -26,6 +27,32 @@ const Binary = "pulumi"
 // NonInteractive is prepended to every invocation. A CLI that stops to ask a
 // question inside a task is a task that hangs with nobody watching.
 const NonInteractive = "--non-interactive"
+
+// ErrNotInstalled is returned when the CLI these tools drive is not on PATH.
+//
+// Its own error because a caller may want to tell it apart: a missing CLI is
+// an unprepared machine, not a bad argument, and a task that reports it as
+// one sends the operator looking at their own command line.
+var ErrNotInstalled = errors.New("the pulumi CLI is not on PATH")
+
+// InstallURL is where to get it, in the message rather than in a comment: the
+// operator reading that error is the one who has to act on it.
+const InstallURL = "https://www.pulumi.com/docs/install/"
+
+// Require refuses before anything runs when the CLI is absent.
+//
+// Without it the failure arrived wrapped in whatever the caller was doing —
+// `read the stack's resources: pulumi --stack dev stack --show-urns --output
+// json: exec: "pulumi": executable file not found in $PATH` — which reads as
+// though the command ran and could not read the stack. It had not run at all.
+func Require() error {
+	if _, err := exec.LookPath(Binary); err != nil {
+		return fmt.Errorf("%w. These tools drive it rather than reimplementing it: install it from %s",
+			ErrNotInstalled, InstallURL)
+	}
+
+	return nil
+}
 
 // StackName is what may be handed to the CLI as --stack.
 //
@@ -72,6 +99,13 @@ func ProjectDirectory(dir string) (string, error) {
 // Run runs the CLI in dir, returning stdout and folding stderr into the error
 // so the CLI's own diagnosis reaches the operator.
 func Run(ctx context.Context, dir string, args ...string) ([]byte, error) {
+	// A backstop rather than the primary check: each command calls Require
+	// first so the message stands on its own. This one is for a caller that
+	// reaches Run directly and would otherwise get the wrapped exec error.
+	if err := Require(); err != nil {
+		return nil, err
+	}
+
 	// #nosec G204,G702 -- the binary is a literal, the remaining arguments are
 	// literals from this package plus a stack name checked by
 	// ValidateStackName and a directory checked by ProjectDirectory, and

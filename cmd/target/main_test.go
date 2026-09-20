@@ -6,6 +6,7 @@ import (
 	"flag"
 	"testing"
 
+	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/pulumi"
 	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/target"
 
 	"github.com/stretchr/testify/assert"
@@ -55,4 +56,19 @@ func TestRun_RefusesBeforeItReachesPulumi(t *testing.T) {
 		assert.Contains(t, err.Error(), tc.fails, name)
 		assert.Empty(t, out.String(), "%s printed a URN", name)
 	}
+}
+
+// TestRun_TheAbsentCLIIsReportedBeforeTheArguments pins the order.
+//
+// Not parallel: it sets PATH for the process. A missing CLI makes the whole
+// command impossible, so reporting a bad stack name instead would send the
+// operator to their own command line for a problem on the machine.
+func TestRun_TheAbsentCLIIsReportedBeforeTheArguments(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	var out, errOut bytes.Buffer
+
+	err := run(context.Background(), []string{"-stack", "../not-a-stack-name", "traefik"}, &out, &errOut)
+	require.ErrorIs(t, err, pulumi.ErrNotInstalled)
+	assert.NotContains(t, err.Error(), "is not a stack name")
 }

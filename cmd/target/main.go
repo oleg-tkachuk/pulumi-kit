@@ -46,6 +46,13 @@ func run(ctx context.Context, args []string, out, errOut io.Writer) error {
 		return err
 	}
 
+	// Before the arguments are judged: an absent CLI makes the whole command
+	// impossible, and reporting a stack name instead sends the operator to
+	// their own command line.
+	if missing := pulumi.Require(); missing != nil {
+		return missing
+	}
+
 	if nameErr := pulumi.ValidateStackName(opts.stack); nameErr != nil {
 		return nameErr
 	}
