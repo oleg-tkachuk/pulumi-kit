@@ -94,11 +94,29 @@ workflow-level default.
 
 ## Pins
 
-Actions are pinned by commit SHA with the tag in a comment. Dependabot keeps
-the module, the actions and npm current — see
-[dependabot.yml](../.github/dependabot.yml).
+Actions are pinned by commit SHA with the tag in a comment, and everything —
+the module, the actions, npm and the three tool versions in `ci.yaml`'s `env` —
+is Renovate's, configured in [renovate.json](../.github/renovate.json).
 
-The three tool versions in `ci.yaml`'s `env` are **bumped by hand**. They carry
-`# renovate:` annotations, which nothing here reads yet — they are there so that
-adding Renovate later is one file rather than an audit of every pin. Dependabot
-does not look inside a workflow's `env`.
+It replaced Dependabot rather than joining it. Dependabot handles gomod,
+github-actions and npm natively but cannot see a version pinned inside a
+workflow's `env`, which is the whole reason for the custom manager; and two
+bots on the same ecosystems means two pull requests for one bump.
+
+Renovate runs from [renovate.yaml](../.github/workflows/renovate.yaml) rather
+than the hosted app, because installing the app needs account rights that were
+not available. That costs a `RENOVATE_TOKEN` secret — `GITHUB_TOKEN` cannot
+serve, because GitHub starts no workflow run from an event it caused, so the
+checks on a Renovate pull request would never run and it could never merge. The
+workflow refuses with the exact scopes to grant when the secret is missing.
+
+The cron decides how often Renovate runs; `renovate.json`'s schedule decides
+what it may do when it does. Regular updates wait for the whole of Monday so
+they batch into one review; vulnerability alerts are exempt. A manual
+`workflow_dispatch` ignores the schedule, which is how a first pass happens
+without waiting.
+
+A bump releases nothing: tool, action and npm updates are typed `ci` and the
+module graph `chore`, neither of which semantic-release acts on. That is right
+while the module graph is test-only — a dependency reaching the commands
+themselves would need a type it does act on, and `renovate.json` says so.
