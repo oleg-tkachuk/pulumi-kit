@@ -1,9 +1,10 @@
 # CI
 
-Five jobs on every pull request, in [ci.yaml](../.github/workflows/ci.yaml).
+In [ci.yaml](../.github/workflows/ci.yaml).
 
 | Job | Checks |
 |-----|--------|
+| Changed paths | whether anything the jobs below read has changed |
 | Build, vet and test | `gofmt`, `go vet`, `go test -race`, and prints total coverage |
 | Lint | `golangci-lint` with the set in [.golangci.yaml](../.golangci.yaml), which includes `gosec` |
 | Reachable vulnerabilities | `govulncheck`: an advisory only when a vulnerable symbol is actually called |
@@ -19,6 +20,28 @@ nothing on the pull request saying it ran.
 the audits that need the API. `--persona=regular` rather than `auditor`: the
 auditor persona is documented as tolerating false positives, which is the wrong
 contract for a blocking gate.
+
+## A documentation change runs nothing
+
+`Changed paths` diffs the pull request and every other job is gated on its
+answer, so editing a README reports five skipped checks rather than building
+and scanning the tree.
+
+The filter is an **exclusion** list — documentation, the licence, `.gitignore`
+and images — and the direction is the point. An inclusion list has to be
+extended for each new kind of input, and forgetting is silent and green: a
+change to `.golangci.yaml` that skipped the linter, or to a workflow that
+skipped the workflow audits. Excluding documentation cannot fail that way,
+because a file type nobody has thought about yet is relevant by default.
+
+Both ways of getting the pattern wrong are quiet, and one of them is
+dangerous: too broad, and a change to code is called documentation, every check
+reports skipped, and the pull request is green having run nothing.
+`internal/ci` reads the pattern out of the workflow and holds it to a table of
+real paths — checked by adding `\.go$` to it and watching the gate fail.
+
+A push to `main` is always relevant, so the release path is never gated on a
+diff computation.
 
 ## Runners
 
