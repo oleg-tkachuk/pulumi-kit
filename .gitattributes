@@ -1,0 +1,21 @@
+# What this file is for: the language GitHub reports for this repository, and
+# the diffs it shows.
+#
+# Measured, before any of the rules below (tracked bytes):
+#
+#   package-lock.json   186,508
+#   Go                   66,856
+#
+# The lockfile is JSON, which Linguist counts as data rather than a language,
+# so it does not move the language bar today. It is still almost two thirds of
+# the repository, and it exists only to pin semantic-release for the release
+# workflow — none of it is code written here.
+#
+# linguist-generated also collapses these files in pull-request diffs, which is
+# the reason to want it: a Renovate bump of semantic-release otherwise renders
+# as thousands of lines nobody reviews.
+
+# ─── Generated: dependency lockfiles ─────────────────────────────────────
+# Solver output. Reviewed as "the lock moved", not line by line.
+package-lock.json linguist-generated=true
+go.sum linguist-generated=true
