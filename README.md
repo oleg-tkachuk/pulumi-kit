@@ -36,7 +36,9 @@ go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@latest -h
 go run github.com/oleg-tkachuk/pulumi-kit/cmd/stack@latest -h
 ```
 
-Requires the `pulumi` CLI on `PATH` and Go 1.27 or newer.
+Requires the `pulumi` CLI on `PATH` and Go 1.27 or newer. CI proves both
+commands against the version pinned in [ci.yaml](.github/workflows/ci.yaml)
+(`PULUMI_VERSION`); Renovate proposes each new release as a pull request.
 
 ## Using them from a Taskfile
 
@@ -57,6 +59,11 @@ tasks:
           | awk '{printf " --target %s", $0}')"
         pulumi --non-interactive --cwd "{{.dir}}" --stack "{{.stack}}" up --yes ${targets}
 ```
+
+The same URNs work for `--exclude` — print `--exclude %s` instead of
+`--target %s` to apply everything **but** the selection. That flag is worth
+the wrapper as much as `--target` is: an `--exclude` pattern that matches
+nothing also succeeds and excludes nothing.
 
 ## Documentation
 
