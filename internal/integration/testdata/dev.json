@@ -1,0 +1,41 @@
+{
+  "version": 3,
+  "deployment": {
+    "manifest": {
+      "time": "2026-10-02T18:43:28.752502723Z",
+      "magic": "3de546644abd884104c0da6c4b4f579c66b2066fca3a62f46440e362d6fd706c",
+      "version": "v3.267.0"
+    },
+    "resources": [
+      {
+        "urn": "urn:pulumi:dev::probe::pulumi:pulumi:Stack::probe-dev",
+        "custom": false,
+        "type": "pulumi:pulumi:Stack"
+      },
+      {
+        "urn": "urn:pulumi:dev::probe::acme:platform:Network::net-b",
+        "custom": false,
+        "type": "acme:platform:Network",
+        "parent": "urn:pulumi:dev::probe::pulumi:pulumi:Stack::probe-dev"
+      },
+      {
+        "urn": "urn:pulumi:dev::probe::acme:platform:Network::net-a",
+        "custom": false,
+        "type": "acme:platform:Network",
+        "parent": "urn:pulumi:dev::probe::pulumi:pulumi:Stack::probe-dev"
+      },
+      {
+        "urn": "urn:pulumi:dev::probe::acme:platform:Network$acme:platform:Subnet::net-b-sub",
+        "custom": false,
+        "type": "acme:platform:Subnet",
+        "parent": "urn:pulumi:dev::probe::acme:platform:Network::net-b"
+      },
+      {
+        "urn": "urn:pulumi:dev::probe::acme:platform:Network$acme:platform:Subnet::net-a-sub",
+        "custom": false,
+        "type": "acme:platform:Subnet",
+        "parent": "urn:pulumi:dev::probe::acme:platform:Network::net-a"
+      }
+    ]
+  }
+}

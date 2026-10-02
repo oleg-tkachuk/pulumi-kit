@@ -8,6 +8,10 @@ version: "2"
 
 run:
   timeout: 5m
+  # internal/integration is behind this tag so `go test ./...` needs no pulumi
+  # CLI. Without it here the linter would never read that code at all.
+  build-tags:
+    - integration
 
 linters:
   default: standard
