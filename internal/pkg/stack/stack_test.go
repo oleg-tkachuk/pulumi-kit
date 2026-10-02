@@ -54,14 +54,25 @@ func TestQualifiedName(t *testing.T) {
 			"knows only the stack's own name")
 }
 
-func TestQualifiedName_ASelfManagedBackendSaysSo(t *testing.T) {
+func TestQualifiedName_ALegacyLayoutBackendSaysSo(t *testing.T) {
 	t.Parallel()
 
 	// One segment is a name pulumi.NewStackReference cannot resolve, and the
-	// error has to say that rather than "not found".
+	// error has to say that rather than "not found" — and name the way out.
 	_, err := stack.QualifiedName([]byte(listing), "dev")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "<org>/<project>/<stack>")
+	assert.Contains(t, err.Error(), "pulumi state upgrade")
+}
+
+func TestQualifiedName_AProjectScopedFileBackendResolves(t *testing.T) {
+	t.Parallel()
+
+	// What a file backend prints under -Q in the layout new backends get,
+	// measured on v3.267.0. A StackReference resolves this name.
+	got, err := stack.QualifiedName([]byte(`[{"name":"organization/probe/dev"}]`), "dev")
+	require.NoError(t, err)
+	assert.Equal(t, "organization/probe/dev", got)
 }
 
 func TestQualifiedName_NotFoundCarriesTheList(t *testing.T) {

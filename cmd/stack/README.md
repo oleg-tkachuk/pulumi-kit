@@ -49,9 +49,15 @@ refusing a description over 256 characters, and the operator read
 
 `ref` reads `pulumi stack ls -Q`, not `pulumi --stack <name> stack --show-name`:
 the latter falls back to the **selected** stack when the name is empty, so a
-caller with an unset variable gets a confident answer about the wrong stack. A
-self-managed backend has no organization to qualify with, and `ref` says so
-rather than returning a name `pulumi.NewStackReference` cannot resolve.
+caller with an unset variable gets a confident answer about the wrong stack.
+
+On a self-managed (file or object-store) backend, `ref` prints
+`organization/<project>/<stack>`. `organization` is literal — it is what that
+backend calls every stack's owner — and `pulumi.NewStackReference` resolves it.
+Only a backend still in the **legacy** layout names a stack with no project or
+organization at all; `ref` refuses that rather than returning a name a
+StackReference cannot resolve, and says `pulumi state upgrade` is the way out.
+Current CLIs refuse to open the legacy layout by default anyway.
 
 `ensure` prints one word so a caller can put it in a column of its own table
 rather than parse a sentence out of it.

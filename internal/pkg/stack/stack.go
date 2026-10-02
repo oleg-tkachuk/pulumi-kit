@@ -50,9 +50,11 @@ const (
 )
 
 // qualifiedSegments is how many parts a fully qualified stack name has:
-// <org>/<project>/<stack>. Pulumi Cloud prints all three under -Q; a
-// self-managed backend has no organization and prints one, which is a name
-// pulumi.NewStackReference cannot resolve.
+// <org>/<project>/<stack>. Pulumi Cloud prints all three under -Q, and so does
+// a file backend in the project-scoped layout — its organization is the
+// literal `organization`, which a StackReference resolves. Only the legacy
+// layout prints one, a name pulumi.NewStackReference cannot resolve, and the
+// CLI refuses to open that layout by default.
 const qualifiedSegments = 3
 
 // listing asks the backend what stacks the project has.
@@ -151,7 +153,8 @@ func QualifiedName(raw []byte, name string) (string, error) {
 
 		if len(segments) != qualifiedSegments {
 			return "", fmt.Errorf("the backend names this stack %q, not <org>/<project>/<stack>: "+
-				"a self-managed backend has no organization to reference, so pass the reference explicitly",
+				"a self-managed backend in the legacy layout has no organization to reference — "+
+				"`pulumi state upgrade` moves it to the project-scoped one, or pass the reference explicitly",
 				row.Name)
 		}
 
