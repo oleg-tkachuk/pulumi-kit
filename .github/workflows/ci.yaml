@@ -33,6 +33,11 @@ env:
   ACTIONLINT_VERSION: "v1.7.12"
   # renovate: datasource=pypi depName=zizmor
   ZIZMOR_VERSION: "1.30.1"
+  # The CLI the integration job drives. The commands do not pin it — they take
+  # whatever is on PATH — so this is the version they are proven against, and
+  # a bump is a pull request that says whether the next one still works.
+  # renovate: datasource=github-releases depName=pulumi/pulumi
+  PULUMI_VERSION: "v3.267.0"
 
 jobs:
   # Whether anything the checks below read has changed.
@@ -191,6 +196,48 @@ jobs:
           go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
           govulncheck ./...
 
+  # The other tests parse JSON written by hand, so none of them can see the
+  # CLI change shape. This one runs the packages against a real CLI — see
+  # internal/integration — with a file backend and imported state, so it needs
+  # no account, no language SDK and no provider plugin.
+  integration:
+    name: Pulumi CLI
+    needs: [changes]
+    if: needs.changes.outputs.relevant != 'false'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        timeout-minutes: 2
+        with:
+          go-version-file: go.mod
+
+      # From the release itself rather than get.pulumi.com's script, so the
+      # version that runs is the pin above and nothing else. The checksum file
+      # comes from the same release: it catches a truncated or corrupted
+      # download, which is the failure a CI job actually meets.
+      - name: Install the pulumi CLI
+        run: |
+          set -euo pipefail
+          base="https://github.com/pulumi/pulumi/releases/download/${PULUMI_VERSION}"
+          archive="pulumi-${PULUMI_VERSION}-linux-x64.tar.gz"
+          cd "$RUNNER_TEMP"
+          curl -fsSL --retry 3 -o "$archive" "${base}/${archive}"
+          curl -fsSL --retry 3 -o checksums.txt "${base}/pulumi-${PULUMI_VERSION#v}-checksums.txt"
+          grep " ${archive}\$" checksums.txt | sha256sum -c -
+          tar -xzf "$archive"
+          printf '%s\n' "${RUNNER_TEMP}/pulumi" >>"$GITHUB_PATH"
+
+      - run: pulumi version
+
+      - run: go test -race -count=1 -tags integration ./internal/integration/
+
   # Two jobs over the same files, and the halves do not overlap. actionlint
   # covers whether a workflow is correct at all — schema, expression syntax,
   # `needs:` naming a job that exists, and shellcheck over every `run:` block.
@@ -259,8 +306,8 @@ jobs:
 
   dispatch-release:
     name: Dispatch release
-    needs: [changes, test, lint, vuln, syntax, audit]
-    # always(), because a documentation-only push skips the five above and a
+    needs: [changes, test, integration, lint, vuln, syntax, audit]
+    # always(), because a documentation-only push skips the six above and a
     # plain `needs` would skip this with them — and then no release is ever
     # dispatched for a push that only edits prose. semantic-release decides
     # whether anything is due; this only has to let it look.

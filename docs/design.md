@@ -27,6 +27,12 @@ it. That is what lets the decisions be tested against output written by hand,
 with no Pulumi backend and no network — which is most of what the test suite
 does.
 
+Output written by hand cannot notice the CLI changing shape, so
+[`internal/integration`](../internal/integration) runs the same packages
+against a real CLI, behind the `integration` build tag. Its stack is imported
+from a state a real program produced, into a file backend in a temporary
+directory, so it needs neither an account nor a language SDK nor the network.
+
 ## The group package is required, not guessed
 
 A component named `Ingress` has the type token `<pkg>:platform:Ingress`. A
@@ -52,7 +58,10 @@ Resources:
 ```
 
 Exit code zero. A caller that passes a mistyped name reports success and
-applies nothing.
+applies nothing. Pulumi has since started refusing an exact URN that is not in
+the stack, but a pattern like this one, and an `--exclude` given one, are
+still silent — measured on v3.267.0, and held by a canary in
+`internal/integration` so a CLI bump says when that changes.
 
 **`stack init || stack select` reports the wrong failure.** The `||` form
 discards init's stderr to keep the "already exists" case quiet, so a rejected

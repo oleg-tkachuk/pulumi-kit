@@ -6,11 +6,12 @@ In [ci.yaml](../.github/workflows/ci.yaml).
 |-----|--------|
 | Changed paths | whether anything the jobs below read has changed |
 | Build, vet and test | `gofmt`, `go vet`, `go test -race`, and prints total coverage |
+| Pulumi CLI | installs the CLI at `PULUMI_VERSION` and runs `internal/integration` against it |
 | Lint | `golangci-lint` with the set in [.golangci.yaml](../.golangci.yaml), which includes `gosec` |
 | Reachable vulnerabilities | `govulncheck`: an advisory only when a vulnerable symbol is actually called |
 | Workflow syntax | `actionlint`: schema, expression syntax, `needs:` naming a job that exists, and shellcheck over every `run:` block |
 | Workflow permissions | `zizmor`: unpinned actions, dangerous triggers, over-broad tokens — exceptions in [zizmor.yml](../.github/zizmor.yml) |
-| Dispatch release | on a push to `main` only, after the five above — see [releases.md](releases.md) |
+| Dispatch release | on a push to `main` only, after the six above — see [releases.md](releases.md) |
 
 The two workflow jobs are separate rather than two steps in one, because a job
 name is a required check: an audit buried inside another job's name leaves
@@ -23,9 +24,9 @@ contract for a blocking gate.
 
 ## Which of them a merge waits for
 
-Six are required by `main`'s protection: `Changed paths`, `Build, vet and test`,
-`Lint`, `Reachable vulnerabilities`, `Workflow syntax` and `Workflow
-permissions`. `Dispatch release` is not — it never runs on a pull request.
+Seven are required by `main`'s protection: `Changed paths`, `Build, vet and
+test`, `Pulumi CLI`, `Lint`, `Reachable vulnerabilities`, `Workflow syntax` and
+`Workflow permissions`. `Dispatch release` is not — it never runs on a pull request.
 
 A **skipped** required check does not block a merge, which is what makes the
 gate below safe.
@@ -37,7 +38,7 @@ breath.
 ## A documentation change runs nothing
 
 `Changed paths` diffs the pull request and every other job is gated on its
-answer, so editing a README reports five skipped checks rather than building
+answer, so editing a README reports six skipped checks rather than building
 and scanning the tree.
 
 The filter is an **exclusion** list — documentation, the licence, `.gitignore`
@@ -63,7 +64,7 @@ branch reports all zeros, a force-push can name a commit the clone does not
 have, and a pull request event carries no previous head.
 
 `Dispatch release` runs under `always()`, because a documentation-only push
-skips the five checks and a plain `needs` would skip the dispatch with them —
+skips the six checks and a plain `needs` would skip the dispatch with them —
 no release would ever be cut for a push that only edits prose. It still refuses
 to dispatch after a `failure` or a `cancelled`. Releasing from a push whose
 checks were skipped is not a hole: the code is byte-identical to the commit
@@ -84,6 +85,20 @@ The release job keeps ten minutes. It installs npm dependencies, computes a
 version from the whole history and fetches the module twice; cutting it to five
 would risk aborting a release that was working.
 
+## The pulumi CLI
+
+The commands take whatever `pulumi` is on `PATH`, so nothing in the module
+pins it. `PULUMI_VERSION` in `ci.yaml` is the version they are **proven
+against**, and Renovate (`datasource=github-releases`) turns each release into
+a pull request whose `Pulumi CLI` check says whether the kit still reads what
+that release prints. The canary in `internal/integration` failing on such a
+pull request is news rather than a regression: Pulumi has started refusing a
+`--target` that matches nothing, and the documentation should say so.
+
+The CLI comes from the GitHub release rather than get.pulumi.com's install
+script, so the version that runs is the pin and nothing else, and its archive
+is checked against the release's checksum file.
+
 ## Runners
 
 Pinned to `ubuntu-24.04` rather than `ubuntu-latest`, which warned on every job
@@ -99,7 +114,7 @@ workflow-level default.
 ## Pins
 
 Actions are pinned by commit SHA with the tag in a comment, and everything —
-the module, the actions, npm and the three tool versions in `ci.yaml`'s `env` —
+the module, the actions, npm and the four tool versions in `ci.yaml`'s `env` —
 is Renovate's, configured in [renovate.json](../.github/renovate.json).
 
 It replaced Dependabot rather than joining it. Dependabot handles gomod,
