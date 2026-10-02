@@ -59,6 +59,21 @@ Resources:
 Exit code zero. So a mistyped name is an apply that claims to have worked and
 changed nothing. A refusal here lists what the stack does hold instead.
 
+Recent CLIs do refuse an **exact** URN that is not in the stack; a pattern
+that matches nothing still succeeds, and so does `--exclude` given one —
+measured on v3.267.0. A canary in
+[internal/integration](../../internal/integration) holds that, so the CI run
+for a CLI bump says when Pulumi starts catching the rest on its own.
+
+## With `--exclude`
+
+The URNs printed are the same whichever flag they go to, so `--exclude` needs
+nothing new here: wrap each line in `--exclude` rather than `--target`. A
+group selector excludes the component with its whole subtree, which is what
+leaving a component alone means. The refusals matter just as much — an
+`--exclude` that matches nothing applies **everything**, including what the
+operator meant to keep out.
+
 ## What it refuses
 
 - **A name that matches nothing**, with the stack's contents as `Type:name`.
