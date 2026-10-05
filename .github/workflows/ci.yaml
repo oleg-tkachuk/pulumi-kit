@@ -22,10 +22,11 @@ concurrency:
 # module. Pinned, that migration is a commit. It is spelled per job because
 # `runs-on` reads neither `env` nor a workflow-level default.
 #
-# Pinned tools, bumped by hand: .github/dependabot.yml covers the module, the
-# actions and npm, and not a workflow's own env. The `renovate:` annotations
-# are inert until something reads them, and they are here so that adding
-# Renovate later is one file rather than an audit of every pin.
+# Pinned tools, bumped by Renovate: the `renovate:` comment above each pin is
+# what the custom manager in .github/renovate.json reads, since no built-in
+# manager looks inside a workflow's env. A pin without one is never upgraded
+# and nothing says so, which is why internal/ci asserts that the pattern
+# matches every annotated pin and that every pin is annotated.
 env:
   # renovate: datasource=go depName=golang.org/x/vuln
   GOVULNCHECK_VERSION: "v1.8.0"
