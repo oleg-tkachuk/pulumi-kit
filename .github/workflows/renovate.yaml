@@ -9,7 +9,7 @@ name: Renovate
 # third-party service holds state about when it last ran.
 #
 # Dependabot was the alternative and it is what this replaces. It handles
-# gomod, github-actions and npm natively but cannot see the four tool
+# gomod, github-actions and npm natively but cannot see the five tool
 # versions pinned inside ci.yaml's `env`, which is the entire reason this
 # exists.
 on:

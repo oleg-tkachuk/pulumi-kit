@@ -161,8 +161,8 @@ func TestRenovateMatchesEveryPinnedTool(t *testing.T) {
 		"no custom manager watches the workflows — the pinned tools are upgraded by nobody")
 
 	// The datasources these pins resolve from: Go modules for two, PyPI for
-	// zizmor, GitHub releases for the pulumi CLI. Another would be a change
-	// here as well.
+	// zizmor, GitHub releases for the pulumi CLI and uv. Another would be a
+	// change here as well.
 	allowed := map[string]bool{"go": true, "pypi": true, "github-releases": true}
 
 	annotation := regexp.MustCompile(`# renovate: datasource=(\S+) depName=(\S+)`)
@@ -193,5 +193,5 @@ func TestRenovateMatchesEveryPinnedTool(t *testing.T) {
 		}
 	}
 
-	assert.Equal(t, 4, seen, "four tool pins are annotated; found %d", seen)
+	assert.Equal(t, 5, seen, "five tool pins are annotated; found %d", seen)
 }
