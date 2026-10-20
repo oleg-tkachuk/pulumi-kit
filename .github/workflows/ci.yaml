@@ -34,6 +34,10 @@ env:
   ACTIONLINT_VERSION: "v1.7.12"
   # renovate: datasource=pypi depName=zizmor
   ZIZMOR_VERSION: "1.31.1"
+  # The uv that runs zizmor. setup-uv takes the newest release when given
+  # none, which would change the tool under the audit on nobody's say-so.
+  # renovate: datasource=github-releases depName=astral-sh/uv
+  UV_VERSION: "0.13.3"
   # The CLI the integration job drives. The commands do not pin it — they take
   # whatever is on PATH — so this is the version they are proven against, and
   # a bump is a pull request that says whether the next one still works.
@@ -292,8 +296,14 @@ jobs:
       # would be red forever and then ignored. Exceptions live in
       # .github/zizmor.yml, each with the reason it stands.
       #
-      # pipx run rather than install, so nothing is left on the runner between
-      # steps and the version in the command is the version that executes.
+      # uvx rather than an install, so the version in the command is the
+      # version that executes and nothing is left in a project environment.
+      # No cache: there is no lockfile to key one on.
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+
       - name: zizmor
         env:
           # Without a token zizmor runs offline and says so, skipping the
@@ -302,7 +312,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          pipx run "zizmor==${ZIZMOR_VERSION}" \
+          uvx "zizmor==${ZIZMOR_VERSION}" \
             --config .github/zizmor.yml --persona=regular --format=plain .github/workflows/
 
   dispatch-release:

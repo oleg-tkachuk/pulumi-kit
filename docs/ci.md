@@ -30,8 +30,9 @@ The two workflow jobs are separate rather than two steps in one, because a job
 name is a required check: an audit buried inside another job's name leaves
 nothing on the pull request saying it ran.
 
-`zizmor` runs with `GH_TOKEN`, because without one it runs offline and skips
-the audits that need the API. `--persona=regular` rather than `auditor`: the
+`zizmor` runs through `uvx`, with uv pinned at `UV_VERSION`. It gets
+`GH_TOKEN`, because without one it runs offline and skips the audits that need
+the API. `--persona=regular` rather than `auditor`: the
 auditor persona is documented as tolerating false positives, which is the wrong
 contract for a blocking gate.
 
@@ -129,7 +130,7 @@ that file once a release knows the label.
 ## Pins
 
 Actions are pinned by commit SHA with the tag in a comment, and everything —
-the module, the actions, npm and the four tool versions in `ci.yaml`'s `env` —
+the module, the actions, npm and the five tool versions in `ci.yaml`'s `env` —
 is Renovate's, configured in [renovate.json](../.github/renovate.json).
 
 It replaced Dependabot rather than joining it. Dependabot handles gomod,
