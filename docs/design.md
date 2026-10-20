@@ -4,10 +4,27 @@
 
 | Package | Owns |
 |---------|------|
-| [`internal/pkg/pulumi`](../internal/pkg/pulumi) | running the CLI, and the two checks every caller makes first: the stack name and the project directory |
+| [`internal/pkg/pulumi`](../internal/pkg/pulumi) | running the CLI, and the checks made before it runs: the CLI is installed, the stack name, the project directory |
 | [`internal/pkg/stack`](../internal/pkg/stack) | whether a stack exists, making sure it does, and its fully qualified reference |
 | [`target`](../target) | turning a selector into URNs, or refusing with the list of what the stack holds. The one public package |
 | [`cmd/*`](../cmd) | argument parsing and printing. No decisions |
+| [`internal/integration`](../internal/integration) | the packages above against a real CLI, behind the `integration` build tag |
+| [`internal/ci`](../internal/ci) | the workflow's path filter, release condition and Renovate pins, held to tables |
+
+```mermaid
+flowchart TD
+    consumer["a Go program"] --> target
+    cmdTarget["cmd/target"] --> target
+    cmdStack["cmd/stack"] --> stack["internal/pkg/stack"]
+    cmdStack --> pulumi["internal/pkg/pulumi"]
+    target --> pulumi
+    stack --> pulumi
+    pulumi -->|"exec, argument vector"| cli(["pulumi CLI on PATH"])
+    integration["internal/integration"] -.->|tests| target & stack & pulumi
+```
+
+Only `target` is importable from outside the module; everything under
+`internal/` is not.
 
 ## One public package
 
@@ -30,8 +47,15 @@ Only one validated the stack name it handed to `exec`, and only one said
 anything useful when the directory held no `Pulumi.yaml`. Neither difference
 was a decision; both were accidents of having been written separately.
 
-`internal/pkg/pulumi` is the one place all three now live. The asymmetry that
-unifying them exposed became its own fix: `stack` validates the name.
+`internal/pkg/pulumi` is the one place all three now live, and `Run` sets the
+working directory rather than passing `--cwd`. The asymmetry that unifying them
+exposed became its own fix: `stack` validates the name.
+
+One half of it remains. `stack` checks the CLI and the stack name but not the
+directory: it never calls `ProjectDirectory`, so a directory without
+`Pulumi.yaml` is answered by the CLI, which searches upwards from it for a
+project, and a directory that does not exist fails with a `chdir` error.
+`target` makes all three checks.
 
 ## Parsing is separated from calling
 
@@ -39,6 +63,19 @@ Every function that reads the CLI's output is separate from the one that runs
 it. That is what lets the decisions be tested against output written by hand,
 with no Pulumi backend and no network — which is most of what the test suite
 does.
+
+```mermaid
+flowchart LR
+    read["Require<br/>ValidateStackName<br/>ProjectDirectory"] --> run["pulumi stack --show-urns --output json"]
+    run --> parse["ResourcesIn"]
+    parse --> match["MatchAll"]
+    match -->|every selector resolves| urns["URNs, one per --target"]
+    match -->|any selector fails| refuse["error naming what the stack holds"]
+    parse --> names["Names"] --> list["-list / target.List"]
+```
+
+Only the second box calls the CLI. Everything after it is tested against JSON
+written by hand.
 
 Output written by hand cannot notice the CLI changing shape, so
 [`internal/integration`](../internal/integration) runs the same packages
@@ -73,8 +110,8 @@ Resources:
 Exit code zero. A caller that passes a mistyped name reports success and
 applies nothing. Pulumi has since started refusing an exact URN that is not in
 the stack, but a pattern like this one, and an `--exclude` given one, are
-still silent — measured on v3.267.0, and held by a canary in
-`internal/integration` so a CLI bump says when that changes.
+still silent — measured on v3.267.0 and still so on v3.270.0, and held by a
+canary in `internal/integration` so a CLI bump says when that changes.
 
 **`stack init || stack select` reports the wrong failure.** The `||` form
 discards init's stderr to keep the "already exists" case quiet, so a rejected

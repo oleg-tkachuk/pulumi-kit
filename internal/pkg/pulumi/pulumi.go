@@ -80,7 +80,8 @@ const ProjectFile = "Pulumi.yaml"
 
 // ProjectDirectory resolves the directory the CLI is pointed at.
 //
-// Absolute, because --cwd needs one. Pulumi.yaml is checked here because the
+// Returned absolute, so an error carrying it names one place whatever the
+// caller's own working directory. Pulumi.yaml is checked here because the
 // CLI's own answer to a directory without one is a message about the current
 // project rather than about the argument it was given.
 func ProjectDirectory(dir string) (string, error) {
@@ -108,9 +109,9 @@ func Run(ctx context.Context, dir string, args ...string) ([]byte, error) {
 
 	// #nosec G204,G702 -- the binary is a literal, the remaining arguments are
 	// literals from this package plus a stack name checked by
-	// ValidateStackName and a directory checked by ProjectDirectory, and
-	// CommandContext takes an argument vector: there is no shell to interpret
-	// any of it. The taint analysis cannot see that the vector form is the
+	// ValidateStackName, the directory is the working directory rather than
+	// an argument, and CommandContext takes an argument vector: there is no
+	// shell to interpret any of it. The taint analysis cannot see that the vector form is the
 	// mitigation.
 	command := exec.CommandContext(ctx, Binary, append([]string{NonInteractive}, args...)...)
 	command.Dir = dir

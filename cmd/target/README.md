@@ -64,7 +64,7 @@ changed nothing. A refusal here lists what the stack does hold instead.
 
 Recent CLIs do refuse an **exact** URN that is not in the stack; a pattern
 that matches nothing still succeeds, and so does `--exclude` given one —
-measured on v3.267.0. A canary in
+measured on v3.267.0 and still so on v3.270.0. A canary in
 [internal/integration](../../internal/integration) holds that, so the CI run
 for a CLI bump says when Pulumi starts catching the rest on its own.
 
