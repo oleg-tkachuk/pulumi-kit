@@ -9,8 +9,8 @@
 //
 //	go test -tags integration ./internal/integration/
 //
-// It needs `pulumi` on PATH and no network: the backend is a temporary
-// directory, and the stack's state is imported from testdata rather than
-// produced by running a program, so no language SDK or provider plugin is
-// fetched.
+// It needs `pulumi` on PATH and no network: the backend and the CLI's home
+// are temporary directories, so nothing is left in ~/.pulumi, and the stack's
+// state is imported from testdata rather than produced by running a program,
+// so no language SDK or provider plugin is fetched.
 package integration
