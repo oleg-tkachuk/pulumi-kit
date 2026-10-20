@@ -27,6 +27,12 @@ const (
 	netASub = "urn:pulumi:dev::probe::acme:platform:Network$acme:platform:Subnet::net-a-sub"
 )
 
+// homeVariable is where the CLI keeps its workspaces, plugins and credentials.
+const homeVariable = "PULUMI_HOME"
+
+// workspacesDir is the directory under it that holds one file per project.
+const workspacesDir = "workspaces"
+
 // project is a Pulumi project in a temporary directory, with the fixture stack
 // imported into a backend that is also a temporary directory.
 //
@@ -35,6 +41,12 @@ const (
 // about a state, not how a program arrives at one. The state itself came from
 // a real run, so its parents and URNs are the CLI's, not a guess at them.
 //
+// The CLI's home is a temporary directory too. It writes a workspace file
+// there for every project it is run in, named after the project and a hash of
+// its path, and each test's project is a new temporary path: with the real
+// home, every run left files in ~/.pulumi/workspaces pointing at directories
+// that no longer exist.
+//
 // Not parallel anywhere in this file: t.Setenv points the CLI at the backend
 // for the whole process.
 func project(t *testing.T) string {
@@ -42,6 +54,7 @@ func project(t *testing.T) string {
 
 	require.NoError(t, pulumi.Require(), "these tests drive the real CLI, so it has to be installed")
 
+	t.Setenv(homeVariable, t.TempDir())
 	t.Setenv("PULUMI_BACKEND_URL", "file://"+t.TempDir())
 	t.Setenv("PULUMI_CONFIG_PASSPHRASE", "integration")
 	t.Setenv("PULUMI_SKIP_UPDATE_CHECK", "true")
@@ -173,4 +186,18 @@ func TestPulumi_StillSucceedsWhenATargetMatchesNothing(t *testing.T) {
 	_, err := pulumi.Run(ctx, dir, "--stack", stackName, "preview",
 		"--target", "urn:pulumi:dev::probe::acme:platform:Network::does-not-exist")
 	require.Error(t, err, "an exact URN that is not in the stack is refused by the CLI itself")
+}
+
+// TestProject_LeavesNothingInTheRealHome holds project to its own home: the
+// workspace file the CLI writes for the test's project lands under the
+// temporary PULUMI_HOME, not under the operator's.
+func TestProject_LeavesNothingInTheRealHome(t *testing.T) {
+	dir := project(t)
+
+	_, err := stack.Exists(context.Background(), dir, stackName)
+	require.NoError(t, err)
+
+	workspaces, err := os.ReadDir(filepath.Join(os.Getenv(homeVariable), workspacesDir))
+	require.NoError(t, err, "the CLI wrote no workspace under the temporary home")
+	assert.NotEmpty(t, workspaces)
 }
