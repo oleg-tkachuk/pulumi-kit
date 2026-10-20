@@ -10,8 +10,8 @@ stack ref    <project-dir> <stack>   # the <org>/<project>/<stack> a StackRefere
 
 The same is a Go package, [`stack`](../../stack): `stack.Exists`,
 `stack.Ensure`, `stack.Reference`. `stack.Exists` gives the three answers
-below as `true`, `false` and an error; it never returns `stack.ErrNotFound`,
-which is what the command wraps to choose status `2`.
+below as `true`, `false` and an error, and `stack.Names` reports a project with
+no stacks as an empty list.
 
 ## `exists` has three answers, not two
 

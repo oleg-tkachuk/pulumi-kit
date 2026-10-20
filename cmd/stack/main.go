@@ -35,11 +35,26 @@ func main() {
 	os.Exit(exitCode(err))
 }
 
+// ErrNotFound says the project has no stack of that name, as opposed to the
+// backend having failed to answer.
+//
+// The two were one exit code, and a caller cannot tell them apart from one:
+// `if stack exists "$dir" "$name"; then … else <create it> fi` created a stack
+// because the network was down. Here rather than in package stack, whose
+// Exists answers absence as false: only this command has to carry absence as
+// an error, to turn it into ExitAbsent.
+var ErrNotFound = errors.New("no such stack")
+
+// NoStacks is what the absent case lists for a project with none, so the
+// message never ends in an empty string. Only words in a message: as a list
+// entry it would also be a valid stack name.
+const NoStacks = "none"
+
 // exitCode maps a failure onto the status a shell reads, separated from main so
 // the mapping can be tested: `if stack exists …` treating a backend failure as
 // absence is the bug this exists to prevent, and it is a one-line mistake.
 func exitCode(err error) int {
-	if errors.Is(err, stack.ErrNotFound) {
+	if errors.Is(err, ErrNotFound) {
 		return ExitAbsent
 	}
 
@@ -160,5 +175,14 @@ func exists(ctx context.Context, dir, name string) error {
 	}
 
 	return fmt.Errorf("%w: nothing named %q in %s. Stacks that do exist: %s",
-		stack.ErrNotFound, name, dir, strings.Join(available, ", "))
+		ErrNotFound, name, dir, stackList(available))
+}
+
+// stackList is the stacks a project has, as the absent case prints them.
+func stackList(names []string) string {
+	if len(names) == 0 {
+		return NoStacks
+	}
+
+	return strings.Join(names, ", ")
 }
