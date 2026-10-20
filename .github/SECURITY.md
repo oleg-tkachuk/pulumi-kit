@@ -8,7 +8,8 @@ something exploitable.
 
 ## What is in scope
 
-Both commands shell out to the `pulumi` CLI and parse its output, so the
+Both commands, and the `stack` and `target` packages behind them, shell out
+to the `pulumi` CLI and parse its output, so the
 interesting surface is what reaches `exec` and what is trusted on the way back:
 
 - **Argument handling.** Everything is passed as an argument vector, never

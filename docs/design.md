@@ -4,7 +4,7 @@
 
 | Package | Owns |
 |---------|------|
-| [`internal/pkg/pulumi`](../internal/pkg/pulumi) | running the CLI, and the three checks both commands make before it runs: the CLI is installed, the stack name, the project directory |
+| [`internal/pkg/pulumi`](../internal/pkg/pulumi) | running the CLI, and the three checks every command and every exported function makes before it runs: the CLI is installed, the stack name, the project directory |
 | [`stack`](../stack) | whether a stack exists, making sure it does, and its fully qualified reference. Public |
 | [`target`](../target) | turning a selector into URNs, or refusing with the list of what the stack holds. Public |
 | [`cmd/*`](../cmd) | argument parsing and printing. No decisions |
@@ -34,7 +34,9 @@ commands and reading their output. Every exported function that runs the CLI
 makes the checks the command makes, in the same order — the CLI is installed,
 the stack name, the project directory — and the commands are thin wrappers
 over them: a Go caller and a shell caller are refused the same inputs with the
-same words.
+same words. `cmd/stack` also makes the checks itself before calling the
+package, so that an unknown subcommand is reported before the directory is
+looked at; the package then repeats them.
 
 `stack` is public although the Automation API also selects and creates
 stacks: a program that drives the CLI from a task wants `Ensure`'s answer —
@@ -66,6 +68,8 @@ it. That is what lets the decisions be tested against output written by hand,
 with no Pulumi backend and no network — which is most of what the test suite
 does.
 
+`target`, from a selector to URNs:
+
 ```mermaid
 flowchart LR
     read["Require<br/>ValidateStackName<br/>ProjectDirectory"] --> run["pulumi stack --show-urns --output json"]
@@ -76,8 +80,19 @@ flowchart LR
     parse --> names["Names"] --> list["-list / target.List"]
 ```
 
-Only the second box calls the CLI. Everything after it is tested against JSON
-written by hand.
+`stack.Ensure`, from a name to `created` or `existing`:
+
+```mermaid
+flowchart LR
+    prepare["Require<br/>ValidateStackName<br/>ProjectDirectory"] --> ls["pulumi stack ls --json"]
+    ls --> named["Named"]
+    named --> action["Action"]
+    action -->|absent| init["pulumi stack init"] --> created["created"]
+    action -->|present| select["pulumi stack select"] --> existing["existing"]
+```
+
+In both, only the `pulumi …` boxes call the CLI. Everything between them is
+tested against JSON written by hand.
 
 Output written by hand cannot notice the CLI changing shape, so
 [`internal/integration`](../internal/integration) runs the same packages
