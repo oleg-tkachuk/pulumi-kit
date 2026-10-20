@@ -34,6 +34,10 @@ func TestRun_RefusesBeforeItReachesPulumi(t *testing.T) {
 	// Not parallel: onPath sets PATH for the process.
 	onPath(t)
 
+	// A directory with no Pulumi.yaml. Handed to the CLI, it would search
+	// upwards and answer for whichever project encloses it.
+	bare := t.TempDir()
+
 	// Every one of these has to fail without a backend, or the checks are not
 	// where they are claimed to be.
 	for name, tc := range map[string]struct {
@@ -56,6 +60,18 @@ func TestRun_RefusesBeforeItReachesPulumi(t *testing.T) {
 		// is even dispatched.
 		"a traversing stack name": {
 			args: []string{"ensure", ".", "../other"}, fails: "is not a stack name",
+		},
+		"exists in a directory that is not a project": {
+			args: []string{CommandExists, bare, "dev"}, fails: "not a Pulumi project",
+		},
+		"ensure in a directory that is not a project": {
+			args: []string{CommandEnsure, bare, "dev"}, fails: "not a Pulumi project",
+		},
+		"ref in a directory that is not a project": {
+			args: []string{CommandRef, bare, "dev"}, fails: "not a Pulumi project",
+		},
+		"a directory that does not exist": {
+			args: []string{CommandExists, filepath.Join(bare, "missing"), "dev"}, fails: "not a Pulumi project",
 		},
 	} {
 		var out bytes.Buffer

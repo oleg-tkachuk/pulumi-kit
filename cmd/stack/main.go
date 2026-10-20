@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/pulumi"
@@ -95,6 +96,20 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		return err
 	}
 
+	// A caller with a bug is told so before the filesystem is consulted, so
+	// an unknown command is not reported as a directory problem.
+	if !slices.Contains(Commands, command) {
+		return fmt.Errorf("unknown command %q: %s", command, strings.Join(Commands, ", "))
+	}
+
+	// Checked here rather than left to the CLI, which searches upwards from a
+	// directory without Pulumi.yaml and answers for whichever project encloses
+	// it — `stack exists` in a subdirectory reported the parent's stack.
+	dir, err := pulumi.ProjectDirectory(dir)
+	if err != nil {
+		return err
+	}
+
 	switch command {
 	case CommandExists:
 		return exists(ctx, dir, name)
@@ -109,7 +124,7 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 
 		return nil
 
-	case CommandRef:
+	default: // CommandRef, the only one left once membership is checked above
 		reference, err := stack.Reference(ctx, dir, name)
 		if err != nil {
 			return err
@@ -118,9 +133,6 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		fmt.Fprintln(out, reference)
 
 		return nil
-
-	default:
-		return fmt.Errorf("unknown command %q: %s", command, strings.Join(Commands, ", "))
 	}
 }
 

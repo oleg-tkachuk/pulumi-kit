@@ -59,10 +59,9 @@ organization at all; `ref` refuses that rather than returning a name a
 StackReference cannot resolve, and says `pulumi state upgrade` is the way out.
 Current CLIs refuse to open the legacy layout by default anyway.
 
-The stack name is validated before anything runs; the directory is not. A
-directory without `Pulumi.yaml` is answered by the CLI, which searches upwards
-from it for a project, so a subdirectory of a project answers for that
-project. `target` refuses such a directory itself.
+The stack name and the directory are checked before anything runs. A
+directory without `Pulumi.yaml` is refused rather than handed to the CLI,
+which would search upwards and answer for whichever project encloses it.
 
 `ensure` prints one word so a caller can put it in a column of its own table
 rather than parse a sentence out of it.
