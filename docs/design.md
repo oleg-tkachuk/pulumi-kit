@@ -4,7 +4,7 @@
 
 | Package | Owns |
 |---------|------|
-| [`internal/pkg/pulumi`](../internal/pkg/pulumi) | running the CLI, and the checks made before it runs: the CLI is installed, the stack name, the project directory |
+| [`internal/pkg/pulumi`](../internal/pkg/pulumi) | running the CLI, and the three checks both commands make before it runs: the CLI is installed, the stack name, the project directory |
 | [`internal/pkg/stack`](../internal/pkg/stack) | whether a stack exists, making sure it does, and its fully qualified reference |
 | [`target`](../target) | turning a selector into URNs, or refusing with the list of what the stack holds. The one public package |
 | [`cmd/*`](../cmd) | argument parsing and printing. No decisions |
@@ -49,13 +49,11 @@ was a decision; both were accidents of having been written separately.
 
 `internal/pkg/pulumi` is the one place all three now live, and `Run` sets the
 working directory rather than passing `--cwd`. The asymmetry that unifying them
-exposed became its own fix: `stack` validates the name.
-
-One half of it remains. `stack` checks the CLI and the stack name but not the
-directory: it never calls `ProjectDirectory`, so a directory without
-`Pulumi.yaml` is answered by the CLI, which searches upwards from it for a
-project, and a directory that does not exist fails with a `chdir` error.
-`target` makes all three checks.
+exposed became its own fix: both commands now make all three checks. The
+directory one matters more than it looks: handed a directory without
+`Pulumi.yaml`, the CLI searches upwards and answers for whichever project
+encloses it, so `stack exists` in a subdirectory once reported the parent's
+stack.
 
 ## Parsing is separated from calling
 

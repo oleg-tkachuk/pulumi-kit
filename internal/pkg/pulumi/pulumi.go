@@ -109,8 +109,8 @@ func Run(ctx context.Context, dir string, args ...string) ([]byte, error) {
 
 	// #nosec G204,G702 -- the binary is a literal, the remaining arguments are
 	// literals from this package plus a stack name checked by
-	// ValidateStackName, the directory is the working directory rather than
-	// an argument, and CommandContext takes an argument vector: there is no
+	// ValidateStackName, the directory is checked by ProjectDirectory and is
+	// the working directory rather than an argument, and CommandContext takes an argument vector: there is no
 	// shell to interpret any of it. The taint analysis cannot see that the vector form is the
 	// mitigation.
 	command := exec.CommandContext(ctx, Binary, append([]string{NonInteractive}, args...)...)
