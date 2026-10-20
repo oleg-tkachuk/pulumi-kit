@@ -51,7 +51,7 @@ badge above says which one is current:
 
 ```yaml
 vars:
-  KIT: 'go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@v0.3.1'
+  KIT: 'go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@v0.4.1'
 tasks:
   apply:
     cmds:
