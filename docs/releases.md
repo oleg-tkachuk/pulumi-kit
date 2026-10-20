@@ -25,6 +25,19 @@ So a CI-only change releases nothing, which is the intent.
    the tag, creates the GitHub release, proves the tag is consumable, and tells
    the module proxy the version exists.
 
+```mermaid
+sequenceDiagram
+    participant CI as ci.yaml
+    participant R as release.yml
+    participant G as git / GitHub
+    participant P as proxy.golang.org
+    CI->>R: repository_dispatch (sha, ci_run_id)
+    R->>G: semantic-release pushes vX.Y.Z, or nothing is due
+    R->>G: gh release create --generate-notes
+    R->>G: go run cmd/stack@TAG -h and cmd/target@TAG -h (GOPROXY=direct)
+    R->>P: GET @v/TAG.info
+```
+
 `repository_dispatch` rather than the obvious alternatives, for two reasons
 that are not style. `workflow_run` is refused by `zizmor`'s dangerous-triggers
 audit, whose own docs say no guard satisfies it. And GitHub starts no workflow

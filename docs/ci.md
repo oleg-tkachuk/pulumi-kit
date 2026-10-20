@@ -11,7 +11,20 @@ In [ci.yaml](../.github/workflows/ci.yaml).
 | Reachable vulnerabilities | `govulncheck`: an advisory only when a vulnerable symbol is actually called |
 | Workflow syntax | `actionlint`: schema, expression syntax, `needs:` naming a job that exists, and shellcheck over every `run:` block |
 | Workflow permissions | `zizmor`: unpinned actions, dangerous triggers, over-broad tokens — exceptions in [zizmor.yml](../.github/zizmor.yml) |
-| Dispatch release | on a push to `main` only, after the six above — see [releases.md](releases.md) |
+| Dispatch release | on a push to `main` only, after the seven above — see [releases.md](releases.md) |
+
+```mermaid
+flowchart LR
+    changes["Changed paths"]
+    changes -->|relevant| test["Build, vet and test"]
+    changes -->|relevant| integration["Pulumi CLI"]
+    changes -->|relevant| lint["Lint"]
+    changes -->|relevant| vuln["Reachable vulnerabilities"]
+    changes -->|relevant| syntax["Workflow syntax"]
+    changes -->|relevant| audit["Workflow permissions"]
+    test & integration & lint & vuln & syntax & audit --> dispatch["Dispatch release<br/>push to main, no failure or cancel"]
+    dispatch -.->|repository_dispatch| release["release.yml"]
+```
 
 The two workflow jobs are separate rather than two steps in one, because a job
 name is a required check: an audit buried inside another job's name leaves
@@ -73,13 +86,14 @@ because each has its own way of being quietly wrong.
 
 ## Timeouts
 
-Every job allows five minutes. They finish in twenty to forty-five seconds, so
-five is generous and the point is to fail fast: a `setup-go` that hung held a
-job for the whole ten minutes the workflow used to allow while its three
-neighbours had finished in under twenty-five seconds.
+Every job in `ci.yaml` allows five minutes. They finish in twenty to
+forty-five seconds, so five is generous and the point is to fail fast: a
+`setup-go` that hung held a job for the whole ten minutes the workflow used to
+allow while its three neighbours had finished in under twenty-five seconds.
 
-`setup-go` also has a two-minute timeout of its own, so that failure names the
-step rather than reporting the job as slow.
+In `Build, vet and test` and `Pulumi CLI`, `setup-go` also has a two-minute
+timeout of its own, so that failure names the step rather than reporting the
+job as slow. The other three jobs that set up Go have no step timeout.
 
 The release job keeps ten minutes. It installs npm dependencies, computes a
 version from the whole history and fetches the module twice; cutting it to five
@@ -101,15 +115,16 @@ is checked against the release's checksum file.
 
 ## Runners
 
-Pinned to `ubuntu-24.04` rather than `ubuntu-latest`, which warned on every job
-that it migrates to Ubuntu 26 on 19 October 2026. Renovate proposes the move as
-a pull request, which is the point of pinning — and
+Every job, in all three workflows, is pinned to `ubuntu-26.04` rather than
+`ubuntu-latest`, which warned on every job that it would migrate to Ubuntu 26
+from 19 October 2026. A floating label changes the OS under these jobs on a
+date nobody here chose; pinned, that migration was a commit. Spelled per job
+because `runs-on` reads neither `env` nor a workflow-level default.
+
 [actionlint.yaml](../.github/actionlint.yaml) declares `ubuntu-26.04` because
 actionlint's built-in label list is behind GitHub: it refuses a label whose
-runner demonstrably exists, and v1.7.12 is the newest release. A floating label changes the
-OS under these jobs on a date nobody here chose; pinned, that migration is a
-commit. Spelled per job because `runs-on` reads neither `env` nor a
-workflow-level default.
+runner demonstrably exists, and v1.7.12 is still the newest release. Delete
+that file once a release knows the label.
 
 ## Pins
 

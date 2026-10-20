@@ -52,7 +52,7 @@ func TestProjectDirectory(t *testing.T) {
 
 	resolved, err := pulumi.ProjectDirectory(dir)
 	require.NoError(t, err)
-	assert.True(t, filepath.IsAbs(resolved), "pulumi --cwd needs an absolute path")
+	assert.True(t, filepath.IsAbs(resolved), "the resolved directory is absolute")
 }
 
 // executable writes a file named after the CLI into its own directory and

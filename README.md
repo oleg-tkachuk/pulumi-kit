@@ -37,8 +37,8 @@ go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@latest -h
 go run github.com/oleg-tkachuk/pulumi-kit/cmd/stack@latest -h
 ```
 
-Requires the `pulumi` CLI on `PATH` and Go 1.27 or newer. CI proves both
-commands against the version pinned in [ci.yaml](.github/workflows/ci.yaml)
+Requires the `pulumi` CLI on `PATH` and Go 1.27.1 or newer, the `go` line in
+[go.mod](go.mod). CI proves the packages behind both commands against the version pinned in [ci.yaml](.github/workflows/ci.yaml)
 (`PULUMI_VERSION`); Renovate proposes each new release as a pull request.
 
 ## Using them from a Taskfile
@@ -51,7 +51,7 @@ badge above says which one is current:
 
 ```yaml
 vars:
-  KIT: 'go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@v0.1.6'
+  KIT: 'go run github.com/oleg-tkachuk/pulumi-kit/cmd/target@v0.3.0'
 tasks:
   apply:
     cmds:

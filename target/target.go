@@ -31,14 +31,9 @@ import (
 
 // GroupPrefix selects a whole group rather than one resource.
 //
-// A group is a component resource, and its TYPE appears in the URN of every
-// resource under it:
-//
-//	urn:…::acme:platform:Ingress$kubernetes:helm.sh/v3:Release::traefik
-//
-// so selecting one reads what the state already says rather than inferring
-// anything. `group:Ingress` takes that resource, its children, and the group's
-// own node.
+// A group is a component resource. `group:Ingress` takes that component's own
+// node and every resource under it, found by following `parent` — see
+// matchGroup for why not by its type in other URNs.
 const GroupPrefix = "group:"
 
 // SelectorSeparator joins several selectors in one argument.
