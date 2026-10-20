@@ -80,6 +80,23 @@ func TestExists_AndNames(t *testing.T) {
 	assert.Equal(t, []string{"dev", "prod"}, names)
 }
 
+// TestNames_AnEmptyProjectIsAnEmptyList pins what replaced a sentinel: Names
+// once reported no stacks as ["none"], which is also a valid stack name, so a
+// caller could not tell an empty project from one holding a stack called none.
+func TestNames_AnEmptyProjectIsAnEmptyList(t *testing.T) {
+	project, _ := fakeCLI(t, `[]`)
+
+	names, err := stack.Names(context.Background(), project)
+	require.NoError(t, err)
+	assert.Empty(t, names)
+
+	project, _ = fakeCLI(t, `[{"name":"none"}]`)
+
+	names, err = stack.Names(context.Background(), project)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"none"}, names, "a stack named none is a stack")
+}
+
 // TestPublic_RefusesBeforeTheCLIRuns holds every exported entry point to the
 // command's checks: a Go caller gets no weaker contract than a shell one.
 func TestPublic_RefusesBeforeTheCLIRuns(t *testing.T) {

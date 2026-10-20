@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/pulumi"
-	"github.com/oleg-tkachuk/pulumi-kit/stack"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -110,13 +109,23 @@ func TestExitCode_SeparatesAbsenceFromFailure(t *testing.T) {
 	// Both were ExitFailed, and a caller cannot tell them apart from one
 	// status: `if stack exists "$dir" "$name"; then … else <create it> fi`
 	// created a stack because the network was down.
-	assert.Equal(t, ExitAbsent, exitCode(fmt.Errorf("looked in %s: %w", ".", stack.ErrNotFound)),
+	assert.Equal(t, ExitAbsent, exitCode(fmt.Errorf("looked in %s: %w", ".", ErrNotFound)),
 		"absence has its own status, however deeply it is wrapped")
 
 	assert.Equal(t, ExitFailed, exitCode(errors.New("pulumi stack ls: dial tcp: connection refused")),
 		"a backend that did not answer is not an answer")
 
 	assert.Equal(t, ExitFailed, exitCode(errors.New(Usage)))
+}
+
+func TestStackList(t *testing.T) {
+	t.Parallel()
+
+	// The word for an empty project lives here, where the message is made:
+	// as a list entry it was also a valid stack name.
+	assert.Equal(t, NoStacks, stackList(nil))
+	assert.Equal(t, "dev, prod", stackList([]string{"dev", "prod"}))
+	assert.Equal(t, "none", stackList([]string{"none"}), "a stack named none is listed as itself")
 }
 
 // onPath puts a file named after the CLI on PATH, so a test of argument

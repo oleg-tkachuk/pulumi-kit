@@ -17,7 +17,6 @@ package stack
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -28,22 +27,6 @@ import (
 type Row struct {
 	Name string `json:"name"`
 }
-
-// ErrNotFound says the project has no stack of that name, as opposed to the
-// backend having failed to answer. No function in this package returns it —
-// Exists answers absence as false — so it is for a caller that has to carry
-// absence as an error, as cmd/stack does to choose its exit status.
-//
-// The two were one exit code, and a caller cannot tell them apart from one:
-// `if stack exists "$dir" "$name"; then … else <create it> fi` created a stack
-// because the network was down. Distinguishing them is the whole point of this
-// error existing.
-var ErrNotFound = errors.New("no such stack")
-
-// NoStacks is what Names reports for a project with none, so a caller
-// formatting a list never prints an empty string. It is a valid stack name as
-// well, so a caller that needs to tell the two apart cannot use Names.
-const NoStacks = "none"
 
 // The one word Ensure returns, so a caller can put it in a column of its own
 // table rather than parse a sentence out of it.
@@ -137,7 +120,8 @@ func exists(ctx context.Context, dir, name string) (bool, error) {
 }
 
 // Names lists the stacks a project has, for an error that tells the operator
-// what to pick instead.
+// what to pick instead. A project with none is an empty list: no name is
+// reserved to mean it, since any word would also be a valid stack name.
 func Names(ctx context.Context, dir string) ([]string, error) {
 	if err := pulumi.Require(); err != nil {
 		return nil, err
@@ -156,10 +140,6 @@ func Names(ctx context.Context, dir string) ([]string, error) {
 	rows, err := ParseRows(out)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(rows) == 0 {
-		return []string{NoStacks}, nil
 	}
 
 	available := make([]string, 0, len(rows))
