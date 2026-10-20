@@ -5,17 +5,17 @@
 | Package | Owns |
 |---------|------|
 | [`internal/pkg/pulumi`](../internal/pkg/pulumi) | running the CLI, and the three checks both commands make before it runs: the CLI is installed, the stack name, the project directory |
-| [`internal/pkg/stack`](../internal/pkg/stack) | whether a stack exists, making sure it does, and its fully qualified reference |
-| [`target`](../target) | turning a selector into URNs, or refusing with the list of what the stack holds. The one public package |
+| [`stack`](../stack) | whether a stack exists, making sure it does, and its fully qualified reference. Public |
+| [`target`](../target) | turning a selector into URNs, or refusing with the list of what the stack holds. Public |
 | [`cmd/*`](../cmd) | argument parsing and printing. No decisions |
 | [`internal/integration`](../internal/integration) | the packages above against a real CLI, behind the `integration` build tag |
 | [`internal/ci`](../internal/ci) | the workflow's path filter, release condition and Renovate pins, held to tables |
 
 ```mermaid
 flowchart TD
-    consumer["a Go program"] --> target
+    consumer["a Go program"] --> target & stack
     cmdTarget["cmd/target"] --> target
-    cmdStack["cmd/stack"] --> stack["internal/pkg/stack"]
+    cmdStack["cmd/stack"] --> stack
     cmdStack --> pulumi["internal/pkg/pulumi"]
     target --> pulumi
     stack --> pulumi
@@ -23,21 +23,25 @@ flowchart TD
     integration["internal/integration"] -.->|tests| target & stack & pulumi
 ```
 
-Only `target` is importable from outside the module; everything under
+`target` and `stack` are importable from outside the module; everything under
 `internal/` is not.
 
-## One public package
+## Two public packages
 
-`target` is importable, so a Go program that drives Pulumi resolves selectors
-in-process instead of running the command and reading its output. `Resolve`
-and `List` make the checks the command makes, in the same order, and
-`cmd/target` is a thin wrapper over them: a Go caller and a shell caller are
-refused the same inputs with the same words.
+`target` and `stack` are importable, so a Go program that drives Pulumi
+resolves selectors and settles its stacks in-process instead of running the
+commands and reading their output. Every exported function that runs the CLI
+makes the checks the command makes, in the same order — the CLI is installed,
+the stack name, the project directory — and the commands are thin wrappers
+over them: a Go caller and a shell caller are refused the same inputs with the
+same words.
 
-The rest stays internal. The runner and the stack checks are how `target`
-works, not something a caller should depend on, and `stack` answers questions
-a shell asks — a Go program has the Automation API for those. What `target`
-does has no equivalent there.
+`stack` is public although the Automation API also selects and creates
+stacks: a program that drives the CLI from a task wants `Ensure`'s answer —
+created or existing — and its checks, without taking on the SDK.
+
+The runner stays internal. It is how both packages work, not something a
+caller should depend on.
 
 ## One runner, not one per command
 

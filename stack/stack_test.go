@@ -3,7 +3,7 @@ package stack_test
 import (
 	"testing"
 
-	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/stack"
+	"github.com/oleg-tkachuk/pulumi-kit/stack"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
