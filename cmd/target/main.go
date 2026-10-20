@@ -1,7 +1,8 @@
 // Command target resolves a resource name into the URNs `pulumi --target`
 // takes.
 //
-// Flag parsing and printing only; the matching is internal/pkg/target's.
+// Flag parsing and printing only; the checks and the matching are those of
+// package target, which Go callers import directly.
 package main
 
 import (
@@ -13,8 +14,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/pulumi"
-	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/target"
+	"github.com/oleg-tkachuk/pulumi-kit/target"
 )
 
 func main() {
@@ -47,39 +47,30 @@ func run(ctx context.Context, args []string, out, errOut io.Writer) error {
 		return err
 	}
 
-	// Before the arguments are judged: an absent CLI makes the whole command
-	// impossible, and reporting a stack name instead sends the operator to
-	// their own command line.
-	if missing := pulumi.Require(); missing != nil {
-		return missing
-	}
-
-	if nameErr := pulumi.ValidateStackName(opts.stack); nameErr != nil {
-		return nameErr
-	}
-
-	directory, err := pulumi.ProjectDirectory(opts.dir)
-	if err != nil {
-		return err
-	}
-
-	resources, err := target.Resources(ctx, directory, opts.stack)
-	if err != nil {
-		return err
-	}
+	// The checks — the CLI is installed, then the stack name, then the
+	// project directory — are the library's, so the command and a Go caller
+	// refuse the same inputs. The CLI comes first: an absent one makes the
+	// whole command impossible, and reporting a stack name instead sends the
+	// operator to their own command line.
+	stack := target.Stack{Dir: opts.dir, Name: opts.stack}
 
 	// Answering the question the refusal used to answer. Until this existed,
 	// seeing what a stack holds meant mistyping a selector on purpose — the
 	// list was only ever reachable through an error.
 	if opts.list {
-		for _, name := range target.Names(resources) {
+		names, listErr := target.List(ctx, stack)
+		if listErr != nil {
+			return listErr
+		}
+
+		for _, name := range names {
 			fmt.Fprintln(out, name)
 		}
 
 		return nil
 	}
 
-	urns, err := target.MatchAll(resources, selector, opts.groupPackage)
+	urns, err := target.Resolve(ctx, stack, selector, opts.groupPackage)
 	if err != nil {
 		return err
 	}

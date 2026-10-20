@@ -10,7 +10,7 @@ import (
 
 	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/pulumi"
 	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/stack"
-	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/target"
+	"github.com/oleg-tkachuk/pulumi-kit/target"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -97,6 +97,21 @@ func TestTarget_ResolvesOneOfTwoSameTypedGroups(t *testing.T) {
 
 	_, err = target.MatchAll(resources, "group:Network", groupPackage)
 	require.Error(t, err, "two Network components: the bare type is ambiguous")
+}
+
+// TestTarget_ResolveIsTheCommandsAnswer runs the library entry point against a
+// real CLI: the same URNs MatchAll gives from the same listing.
+func TestTarget_ResolveIsTheCommandsAnswer(t *testing.T) {
+	dir := project(t)
+	stack := target.Stack{Dir: dir, Name: stackName}
+
+	urns, err := target.Resolve(context.Background(), stack, "group:Network:net-a", groupPackage)
+	require.NoError(t, err)
+	assert.Equal(t, []string{netA, netASub}, urns)
+
+	names, err := target.List(context.Background(), stack)
+	require.NoError(t, err)
+	assert.Contains(t, names, "Network:net-b")
 }
 
 func TestStack_ExistsEnsureAndNames(t *testing.T) {
