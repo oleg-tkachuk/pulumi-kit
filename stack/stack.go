@@ -30,7 +30,9 @@ type Row struct {
 }
 
 // ErrNotFound says the project has no stack of that name, as opposed to the
-// backend having failed to answer.
+// backend having failed to answer. No function in this package returns it —
+// Exists answers absence as false — so it is for a caller that has to carry
+// absence as an error, as cmd/stack does to choose its exit status.
 //
 // The two were one exit code, and a caller cannot tell them apart from one:
 // `if stack exists "$dir" "$name"; then … else <create it> fi` created a stack
@@ -39,7 +41,8 @@ type Row struct {
 var ErrNotFound = errors.New("no such stack")
 
 // NoStacks is what Names reports for a project with none, so a caller
-// formatting a list never prints an empty string.
+// formatting a list never prints an empty string. It is a valid stack name as
+// well, so a caller that needs to tell the two apart cannot use Names.
 const NoStacks = "none"
 
 // The one word Ensure returns, so a caller can put it in a column of its own
