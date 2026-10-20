@@ -1,7 +1,7 @@
 // Command stack answers and settles questions about Pulumi stacks.
 //
-// Argument parsing and printing only; the decisions are
-// internal/pkg/stack's.
+// Argument parsing and printing only; the decisions are those of package
+// stack, which Go callers import directly.
 package main
 
 import (
@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/pulumi"
-	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/stack"
+	"github.com/oleg-tkachuk/pulumi-kit/stack"
 )
 
 // Exit codes. `exists` answers with its status, so "the stack is not there" has

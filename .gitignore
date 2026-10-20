@@ -31,10 +31,9 @@ go.work.sum
 # .idea/
 # .vscode/
 
-# The binary `go build ./cmd/stack` leaves in the working directory. cmd/target
-# has no such entry: the `target` package's directory takes that name, so
-# `go build` refuses to write it there.
-/stack
+# No entries for the binaries of cmd/stack and cmd/target: the packages'
+# directories at the root take those names, so `go build` refuses to write
+# them there, and an entry for either would hide the package itself.
 
 # Node, for semantic-release.
 node_modules/

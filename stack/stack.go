@@ -93,8 +93,38 @@ func Named(raw []byte, name string) (bool, error) {
 	return false, nil
 }
 
+// ErrNotInstalled is returned when the pulumi CLI is not on PATH: a machine
+// that is not prepared, not a bad argument.
+var ErrNotInstalled = pulumi.ErrNotInstalled
+
+// prepare makes the checks the command makes, in its order — the CLI is
+// installed, the name is a stack name, the directory is a project — and
+// returns the directory made absolute. Every exported function that runs the
+// CLI goes through it, so a Go caller is refused what a shell caller is.
+func prepare(dir, name string) (string, error) {
+	if err := pulumi.Require(); err != nil {
+		return "", err
+	}
+
+	if err := pulumi.ValidateStackName(name); err != nil {
+		return "", err
+	}
+
+	return pulumi.ProjectDirectory(dir)
+}
+
 // Exists says whether the project in dir has a stack of that name.
 func Exists(ctx context.Context, dir, name string) (bool, error) {
+	dir, err := prepare(dir, name)
+	if err != nil {
+		return false, err
+	}
+
+	return exists(ctx, dir, name)
+}
+
+// exists is Exists for a directory prepare has checked.
+func exists(ctx context.Context, dir, name string) (bool, error) {
 	out, err := pulumi.Run(ctx, dir, listing...)
 	if err != nil {
 		return false, err
@@ -106,6 +136,15 @@ func Exists(ctx context.Context, dir, name string) (bool, error) {
 // Names lists the stacks a project has, for an error that tells the operator
 // what to pick instead.
 func Names(ctx context.Context, dir string) ([]string, error) {
+	if err := pulumi.Require(); err != nil {
+		return nil, err
+	}
+
+	dir, err := pulumi.ProjectDirectory(dir)
+	if err != nil {
+		return nil, err
+	}
+
 	out, err := pulumi.Run(ctx, dir, listing...)
 	if err != nil {
 		return nil, err
@@ -174,6 +213,11 @@ func QualifiedName(raw []byte, name string) (string, error) {
 // falls back to the SELECTED stack when the name is empty, so a caller with an
 // unset variable gets a confident answer about the wrong stack.
 func Reference(ctx context.Context, dir, name string) (string, error) {
+	dir, err := prepare(dir, name)
+	if err != nil {
+		return "", err
+	}
+
 	out, err := pulumi.Run(ctx, dir, qualifiedListing...)
 	if err != nil {
 		return "", err
@@ -203,7 +247,12 @@ func Action(present bool) (verb, state string) {
 // Ensure selects the stack, creating it first if it is not there, and returns
 // which of those two it did.
 func Ensure(ctx context.Context, dir, name string) (string, error) {
-	present, err := Exists(ctx, dir, name)
+	dir, err := prepare(dir, name)
+	if err != nil {
+		return "", err
+	}
+
+	present, err := exists(ctx, dir, name)
 	if err != nil {
 		return "", err
 	}

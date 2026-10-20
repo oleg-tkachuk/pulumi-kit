@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/pulumi"
-	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/stack"
+	"github.com/oleg-tkachuk/pulumi-kit/stack"
 	"github.com/oleg-tkachuk/pulumi-kit/target"
 
 	"github.com/stretchr/testify/assert"

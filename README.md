@@ -80,6 +80,15 @@ urns, err := target.Resolve(ctx, target.Stack{Dir: "infra", Name: "dev"},
 It refuses what the command refuses, before the CLI runs; `target.List` is
 `-list`. Each URN goes to Pulumi as its own `--target` argument.
 
+`stack` is one too — `stack.Ensure`, `stack.Exists`, `stack.Reference` — with
+the same checks:
+
+```go
+import "github.com/oleg-tkachuk/pulumi-kit/stack"
+
+state, err := stack.Ensure(ctx, "infra", "dev") // stack.StateCreated or stack.StateExisting
+```
+
 ## Documentation
 
 | Document | Open it when |

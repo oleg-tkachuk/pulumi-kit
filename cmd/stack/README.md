@@ -8,6 +8,9 @@ stack ensure <project-dir> <stack>   # select it, creating it first if needed; p
 stack ref    <project-dir> <stack>   # the <org>/<project>/<stack> a StackReference needs
 ```
 
+The same is a Go package, [`stack`](../../stack): `stack.Exists`,
+`stack.Ensure`, `stack.Reference`.
+
 ## `exists` has three answers, not two
 
 | Status | Means |
