@@ -6,8 +6,21 @@
 |---------|------|
 | [`internal/pkg/pulumi`](../internal/pkg/pulumi) | running the CLI, and the two checks every caller makes first: the stack name and the project directory |
 | [`internal/pkg/stack`](../internal/pkg/stack) | whether a stack exists, making sure it does, and its fully qualified reference |
-| [`internal/pkg/target`](../internal/pkg/target) | turning a selector into URNs, or refusing with the list of what the stack holds |
+| [`target`](../target) | turning a selector into URNs, or refusing with the list of what the stack holds. The one public package |
 | [`cmd/*`](../cmd) | argument parsing and printing. No decisions |
+
+## One public package
+
+`target` is importable, so a Go program that drives Pulumi resolves selectors
+in-process instead of running the command and reading its output. `Resolve`
+and `List` make the checks the command makes, in the same order, and
+`cmd/target` is a thin wrapper over them: a Go caller and a shell caller are
+refused the same inputs with the same words.
+
+The rest stays internal. The runner and the stack checks are how `target`
+works, not something a caller should depend on, and `stack` answers questions
+a shell asks — a Go program has the Automation API for those. What `target`
+does has no equivalent there.
 
 ## One runner, not one per command
 

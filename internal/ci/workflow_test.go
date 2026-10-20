@@ -59,7 +59,7 @@ func TestInertPaths_ClassifyTheTreeCorrectly(t *testing.T) {
 		// the workflow audits, a linter config change that skipped the
 		// linter, a lockfile change that skipped the release tooling.
 		"cmd/stack/main.go":             false,
-		"internal/pkg/target/target.go": false,
+		"target/target.go":              false,
 		"internal/pkg/pulumi/pulumi.go": false,
 		"go.mod":                        false,
 		"go.sum":                        false,

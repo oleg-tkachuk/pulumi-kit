@@ -8,6 +8,9 @@ target -dir <project-dir> -stack <stack> [-group-package <pkg>] <selector[,selec
 target -dir <project-dir> -stack <stack> -list
 ```
 
+The same resolution is a Go package, [`target`](../../target):
+`target.Resolve` and `target.List`.
+
 | Selector | Means |
 |----------|-------|
 | `traefik` | the resource with that name, if exactly one has it |

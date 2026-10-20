@@ -3,7 +3,7 @@ package target_test
 import (
 	"testing"
 
-	"github.com/oleg-tkachuk/pulumi-kit/internal/pkg/target"
+	"github.com/oleg-tkachuk/pulumi-kit/target"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

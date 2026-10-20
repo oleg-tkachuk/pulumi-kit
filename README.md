@@ -16,6 +16,7 @@ exists because Pulumi's own answer to a mistake is silence.
 - [The commands](#the-commands)
 - [Quick start](#quick-start)
 - [Using them from a Taskfile](#using-them-from-a-taskfile)
+- [As a Go library](#as-a-go-library)
 - [Documentation](#documentation)
 - [Licence](#licence)
 
@@ -64,6 +65,20 @@ The same URNs work for `--exclude` — print `--exclude %s` instead of
 `--target %s` to apply everything **but** the selection. That flag is worth
 the wrapper as much as `--target` is: an `--exclude` pattern that matches
 nothing also succeeds and excludes nothing.
+
+## As a Go library
+
+`target` is also a package, for a Go program that drives Pulumi itself:
+
+```go
+import "github.com/oleg-tkachuk/pulumi-kit/target"
+
+urns, err := target.Resolve(ctx, target.Stack{Dir: "infra", Name: "dev"},
+	"traefik,group:Ingress", "acme")
+```
+
+It refuses what the command refuses, before the CLI runs; `target.List` is
+`-list`. Each URN goes to Pulumi as its own `--target` argument.
 
 ## Documentation
 
