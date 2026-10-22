@@ -37,7 +37,7 @@ env:
   # The uv that runs zizmor. setup-uv takes the newest release when given
   # none, which would change the tool under the audit on nobody's say-so.
   # renovate: datasource=github-releases depName=astral-sh/uv
-  UV_VERSION: "0.13.3"
+  UV_VERSION: "0.13.5"
   # The CLI the integration job drives. The commands do not pin it — they take
   # whatever is on PATH — so this is the version they are proven against, and
   # a bump is a pull request that says whether the next one still works.
