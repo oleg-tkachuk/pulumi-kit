@@ -37,3 +37,8 @@ go.work.sum
 
 # Node, for semantic-release.
 node_modules/
+
+# Task: the build verb's output, the coverage report and its own cache.
+bin/
+coverage/
+.task/
