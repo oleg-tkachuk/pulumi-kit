@@ -42,7 +42,7 @@ env:
   # whatever is on PATH — so this is the version they are proven against, and
   # a bump is a pull request that says whether the next one still works.
   # renovate: datasource=github-releases depName=pulumi/pulumi
-  PULUMI_VERSION: "v3.272.0"
+  PULUMI_VERSION: "v3.273.0"
 
 jobs:
   # Whether anything the checks below read has changed.
