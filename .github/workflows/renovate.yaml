@@ -88,7 +88,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: renovatebot/github-action@2804199d260ad00c1fae0e9e842888369391c776 # v46.3.10
+      - uses: renovatebot/github-action@43b963bf5dd5e57f1f95c59765a018d782870211 # v46.3.11
         env:
           # Repository configuration stays in .github/renovate.json. Only what
           # cannot live there — which repository to act on, and who to act as —
