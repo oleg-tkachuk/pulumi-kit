@@ -2,14 +2,16 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": [
     "Renovate runs from .github/workflows/renovate.yaml rather than the hosted app: installing the app needs rights on the account that were not available.",
-    "It replaces Dependabot rather than joining it. Dependabot handles gomod, github-actions and npm natively but cannot see the five tool versions pinned inside ci.yaml's env, which is the entire reason this exists — and two bots on the same ecosystems means two pull requests for one bump.",
+    "It replaces Dependabot rather than joining it. Dependabot handles gomod, github-actions and npm natively but cannot see the six tool versions pinned inside ci.yaml's env, which is the entire reason this exists — and two bots on the same ecosystems means two pull requests for one bump.",
     "The schedule is the WHOLE of Monday, so weekly batches land in one review. The workflow's cron decides how often Renovate runs; this decides what it may do when it runs. A manual workflow_dispatch sets RENOVATE_FORCE and ignores it, which is how the first pass happens without waiting.",
-    "rebaseWhen keeps branches current because protection on main is strict: without it a pull request goes stale as soon as anything else lands."
+    "rebaseWhen keeps branches current because protection on main is strict: without it a pull request goes stale as soon as anything else lands.",
+    "The taskfiles preset finds the task library's pin in Taskfile.yaml and refreshes .task/remote/ on the same branch. Its command has to match RENOVATE_ALLOWED_COMMANDS in renovate.yaml, which also puts `task` inside Renovate's container. The pin is a custom.regex dependency, so the first packageRule below types its bump ci."
   ],
   "extends": [
     "config:recommended",
     ":semanticCommits",
-    ":dependencyDashboard"
+    ":dependencyDashboard",
+    "github>oleg-tkachuk/taskfiles//renovate/tasklib-lock"
   ],
   "timezone": "Europe/Kyiv",
   "rebaseWhen": "behind-base-branch",
@@ -19,7 +21,7 @@
 
   "customManagers": [
     {
-      "description": "The five tool versions in ci.yaml's env, which no built-in manager reads. The `renovate:` comment above each pin carries the datasource and depName, so this pattern knows no special cases — the five are not homogeneous: Go modules for govulncheck and actionlint, PyPI for zizmor, GitHub releases for the pulumi CLI and uv. A test in internal/ci reads this regex out of this file and asserts it still matches every annotated pin AND that every pin is annotated, because the failure mode is silent: Renovate opens no pull request, for ever, and nothing says so.",
+      "description": "The six tool versions in ci.yaml's env, which no built-in manager reads. The `renovate:` comment above each pin carries the datasource and depName, so this pattern knows no special cases — the six are not homogeneous: Go modules for govulncheck and actionlint, PyPI for zizmor, GitHub releases for the pulumi CLI, uv and Task. A test in internal/ci reads this regex out of this file and asserts it still matches every annotated pin AND that every pin is annotated, because the failure mode is silent: Renovate opens no pull request, for ever, and nothing says so.",
       "customType": "regex",
       "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
       "matchStrings": [

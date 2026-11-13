@@ -9,7 +9,7 @@ name: Renovate
 # third-party service holds state about when it last ran.
 #
 # Dependabot was the alternative and it is what this replaces. It handles
-# gomod, github-actions and npm natively but cannot see the five tool
+# gomod, github-actions and npm natively but cannot see the six tool
 # versions pinned inside ci.yaml's `env`, which is the entire reason this
 # exists.
 on:
@@ -51,6 +51,11 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read # the action reads this repository; RENOVATE_TOKEN does the writing
+    env:
+      # Where Task is unpacked, under the runner's temporary directory, and
+      # where Renovate's container finds it.
+      TASK_BIN_SUBDIR: task-bin
+      TASK_CONTAINER_PATH: /usr/local/bin/task
     steps:
       # Said before the action runs, because without the secret the action
       # fails with an authentication error that says nothing about what to do.
@@ -88,6 +93,30 @@ jobs:
         with:
           persist-credentials: false
 
+      # A bump of the task library moves the pin in Taskfile.yaml, and
+      # renovate.json then runs `task … tasklib:lock` on the branch so the
+      # pull request carries the lock as well. Renovate runs that inside its
+      # container, so the binary is unpacked here and mounted there.
+      #
+      # The version is ci.yaml's TASK_VERSION, read rather than repeated: a
+      # second pin would be a second thing to keep in step.
+      - name: Install Task
+        run: |
+          set -euo pipefail
+          TASK_VERSION="$(awk -F'"' '/^  TASK_VERSION:/ { print $2 }' .github/workflows/ci.yaml)"
+          if [ -z "$TASK_VERSION" ]; then
+            printf '%s\n' "::error::ci.yaml declares no TASK_VERSION"
+            exit 1
+          fi
+          base="https://github.com/go-task/task/releases/download/${TASK_VERSION}"
+          archive="task_linux_amd64.tar.gz"
+          cd "$RUNNER_TEMP"
+          curl -fsSL --retry 3 -o "$archive" "${base}/${archive}"
+          curl -fsSL --retry 3 -o task_checksums.txt "${base}/task_checksums.txt"
+          grep " ${archive}\$" task_checksums.txt | sha256sum -c -
+          mkdir -p "${RUNNER_TEMP}/${TASK_BIN_SUBDIR}"
+          tar -xzf "$archive" -C "${RUNNER_TEMP}/${TASK_BIN_SUBDIR}" task
+
       - uses: renovatebot/github-action@266fef21329c44765ad42f9dea1f01f5d2d91084 # v46.3.13
         env:
           # Repository configuration stays in .github/renovate.json. Only what
@@ -95,6 +124,11 @@ jobs:
           # is here.
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_PLATFORM: github
+          # The one post-upgrade command, as the taskfiles preset in
+          # renovate.json spells it. Renovate skips a command this does not
+          # match with a log line and nothing else; `Task library lock` in
+          # ci.yaml is what turns that pull request red.
+          RENOVATE_ALLOWED_COMMANDS: '["^task --yes --offline=false --download tasklib:lock$"]'
           # Commits are authored by the bot, not by a person who did not write
           # them. The address is GitHub's own no-reply for the app.
           RENOVATE_GIT_AUTHOR: "renovate[bot] <29139614+renovate[bot]@users.noreply.github.com>"
@@ -110,3 +144,8 @@ jobs:
           RENOVATE_FORCE: ${{ (github.event_name == 'workflow_dispatch' && inputs.ignoreSchedule) && '{"schedule":null}' || '' }}
         with:
           token: ${{ secrets.RENOVATE_TOKEN }}
+          # /tmp:/tmp is the action's default, which naming any volume
+          # replaces.
+          docker-volumes: |
+            /tmp:/tmp ;
+            ${{ runner.temp }}/${{ env.TASK_BIN_SUBDIR }}/task:${{ env.TASK_CONTAINER_PATH }}:ro

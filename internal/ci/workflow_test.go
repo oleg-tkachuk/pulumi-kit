@@ -68,9 +68,15 @@ func TestInertPaths_ClassifyTheTreeCorrectly(t *testing.T) {
 		".github/workflows/release.yml": false,
 		".github/zizmor.yml":            false,
 		".github/dependabot.yml":        false,
-		"package.json":                  false,
-		"package-lock.json":             false,
-		"release.config.cjs":            false,
+		// The task library's pin, its lock and the switch that makes Task
+		// read the lock: the lock job has to run when any of them moves.
+		"Taskfile.yaml": false,
+		".taskrc.yml":   false,
+		".task/remote/git.github.com.go.0000.yaml":     false,
+		".task/remote/git.github.com.go.0000.checksum": false,
+		"package.json":       false,
+		"package-lock.json":  false,
+		"release.config.cjs": false,
 		// A markdown file is inert; a Go file that merely mentions one is not.
 		"internal/ci/workflow_test.go": false,
 	} {
@@ -85,7 +91,7 @@ var dispatchCondition = regexp.MustCompile(`(?s)dispatch-release:.*?if: >-\n(.*?
 // TestDispatchRelease_RunsAfterSkippedChecksButNeverAfterFailedOnes pins a
 // condition with two independent ways of being wrong.
 //
-// Without always(), a documentation-only push skips the six checks and this
+// Without always(), a documentation-only push skips the seven checks and this
 // job is skipped with them — so no release is ever dispatched for a push that
 // only edits prose, and the version that a `fix:` in the same push would have
 // cut never appears. Nothing reports that.
@@ -111,6 +117,11 @@ func TestDispatchRelease_RunsAfterSkippedChecksButNeverAfterFailedOnes(t *testin
 			"always() without a %s guard dispatches a release after a check did not pass", guard)
 	}
 }
+
+// annotatedPins is how many tool versions the workflows pin under a
+// `# renovate:` comment: govulncheck, actionlint, zizmor, uv, the pulumi CLI
+// and Task.
+const annotatedPins = 6
 
 // renovateConfig is the part of .github/renovate.json this file reads.
 type renovateConfig struct {
@@ -161,8 +172,8 @@ func TestRenovateMatchesEveryPinnedTool(t *testing.T) {
 		"no custom manager watches the workflows — the pinned tools are upgraded by nobody")
 
 	// The datasources these pins resolve from: Go modules for two, PyPI for
-	// zizmor, GitHub releases for the pulumi CLI and uv. Another would be a
-	// change here as well.
+	// zizmor, GitHub releases for the pulumi CLI, uv and Task. Another would
+	// be a change here as well.
 	allowed := map[string]bool{"go": true, "pypi": true, "github-releases": true}
 
 	annotation := regexp.MustCompile(`# renovate: datasource=(\S+) depName=(\S+)`)
@@ -193,5 +204,62 @@ func TestRenovateMatchesEveryPinnedTool(t *testing.T) {
 		}
 	}
 
-	assert.Equal(t, 5, seen, "five tool pins are annotated; found %d", seen)
+	assert.Equal(t, annotatedPins, seen, "%d tool pins are annotated; found %d", annotatedPins, seen)
+}
+
+// lockPreset is the taskfiles preset renovate.json extends, and lockCommand
+// the post-upgrade command that preset runs to refresh .task/remote/.
+const (
+	renovateWorkflow = ".github/workflows/renovate.yaml"
+	lockPreset       = "github>oleg-tkachuk/taskfiles//renovate/tasklib-lock"
+	lockCommand      = "task --yes --offline=false --download tasklib:lock"
+)
+
+// allowedCommands finds the allow-list the Renovate workflow hands the bot.
+var allowedCommands = regexp.MustCompile(`RENOVATE_ALLOWED_COMMANDS: '([^']+)'`)
+
+// TestRenovateMayRefreshTheTaskLibraryLock holds the workflow's allow-list to
+// the command the preset runs.
+//
+// Renovate skips a post-upgrade command its allow-list does not match with a
+// log line: the pull request then moves the pin without its lock, and nothing
+// in the Renovate run is red.
+func TestRenovateMayRefreshTheTaskLibraryLock(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..")
+
+	raw, err := os.ReadFile(filepath.Join(root, ".github", "renovate.json"))
+	require.NoError(t, err)
+
+	var config struct {
+		Extends []string `json:"extends"`
+	}
+
+	require.NoError(t, json.Unmarshal(raw, &config))
+	require.Contains(t, config.Extends, lockPreset,
+		"nothing moves the task library's pin, or its lock")
+
+	text, err := os.ReadFile(filepath.Join(root, renovateWorkflow))
+	require.NoError(t, err)
+
+	found := allowedCommands.FindSubmatch(text)
+	require.NotNil(t, found, "%s allows no post-upgrade command", renovateWorkflow)
+
+	var patterns []string
+
+	require.NoError(t, json.Unmarshal(found[1], &patterns))
+
+	var allowed bool
+
+	for _, pattern := range patterns {
+		compiled, compileErr := regexp.Compile(pattern)
+		require.NoError(t, compileErr, pattern)
+		assert.True(t, strings.HasPrefix(pattern, "^") && strings.HasSuffix(pattern, "$"),
+			"%q is not anchored, so it allows any command that contains it", pattern)
+
+		allowed = allowed || compiled.MatchString(lockCommand)
+	}
+
+	assert.True(t, allowed, "%s does not allow %q", renovateWorkflow, lockCommand)
 }

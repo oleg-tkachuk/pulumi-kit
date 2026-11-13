@@ -11,7 +11,8 @@ In [ci.yaml](../.github/workflows/ci.yaml).
 | Reachable vulnerabilities | `govulncheck`: an advisory only when a vulnerable symbol is actually called |
 | Workflow syntax | `actionlint`: schema, expression syntax, `needs:` naming a job that exists, and shellcheck over every `run:` block |
 | Workflow permissions | `zizmor`: unpinned actions, dangerous triggers, over-broad tokens — exceptions in [zizmor.yml](../.github/zizmor.yml) |
-| Dispatch release | on a push to `main` only, after the seven above — see [releases.md](releases.md) |
+| Task library lock | installs Task at `TASK_VERSION` and runs `task tasklib:check`: [Taskfile.yaml](../Taskfile.yaml) loads from the lock in `.task/remote/`, and each locked module is what its checksum records |
+| Dispatch release | on a push to `main` only, after the eight above — see [releases.md](releases.md) |
 
 ```mermaid
 flowchart LR
@@ -22,7 +23,8 @@ flowchart LR
     changes -->|relevant| vuln["Reachable vulnerabilities"]
     changes -->|relevant| syntax["Workflow syntax"]
     changes -->|relevant| audit["Workflow permissions"]
-    test & integration & lint & vuln & syntax & audit --> dispatch["Dispatch release<br/>push to main, no failure or cancel"]
+    changes -->|relevant| tasklib["Task library lock"]
+    test & integration & lint & vuln & syntax & audit & tasklib --> dispatch["Dispatch release<br/>push to main, no failure or cancel"]
     dispatch -.->|repository_dispatch| release["release.yml"]
 ```
 
@@ -40,7 +42,9 @@ contract for a blocking gate.
 
 Seven are required by `main`'s protection: `Changed paths`, `Build, vet and
 test`, `Pulumi CLI`, `Lint`, `Reachable vulnerabilities`, `Workflow syntax` and
-`Workflow permissions`. `Dispatch release` is not — it never runs on a pull request.
+`Workflow permissions`. `Dispatch release` is not — it never runs on a pull
+request. `Task library lock` reports on every pull request and is not in the
+protection's list.
 
 A **skipped** required check does not block a merge, which is what makes the
 gate below safe.
@@ -52,7 +56,7 @@ breath.
 ## A documentation change runs nothing
 
 `Changed paths` diffs the pull request and every other job is gated on its
-answer, so editing a README reports six skipped checks rather than building
+answer, so editing a README reports seven skipped checks rather than building
 and scanning the tree.
 
 The filter is an **exclusion** list — documentation, the licence, `.gitignore`
@@ -78,7 +82,7 @@ branch reports all zeros, a force-push can name a commit the clone does not
 have, and a pull request event carries no previous head.
 
 `Dispatch release` runs under `always()`, because a documentation-only push
-skips the six checks and a plain `needs` would skip the dispatch with them —
+skips the seven checks and a plain `needs` would skip the dispatch with them —
 no release would ever be cut for a push that only edits prose. It still refuses
 to dispatch after a `failure` or a `cancelled`. Releasing from a push whose
 checks were skipped is not a hole: the code is byte-identical to the commit
@@ -130,8 +134,18 @@ that file once a release knows the label.
 ## Pins
 
 Actions are pinned by commit SHA with the tag in a comment, and everything —
-the module, the actions, npm and the five tool versions in `ci.yaml`'s `env` —
-is Renovate's, configured in [renovate.json](../.github/renovate.json).
+the module, the actions, npm, the six tool versions in `ci.yaml`'s `env` and
+the task library's tag in `Taskfile.yaml` — is Renovate's, configured in
+[renovate.json](../.github/renovate.json).
+
+The task library is the one pin with a lock beside it. `Taskfile.yaml` names a
+tag of [taskfiles](https://github.com/oleg-tkachuk/taskfiles), `.task/remote/`
+holds what that tag served, and [.taskrc.yml](../.taskrc.yml) makes Task read
+the lock rather than fetch. Renovate moves both: the library's own preset
+finds the pin and runs `task --yes --offline=false --download tasklib:lock` on
+the branch, which `renovate.yaml` allows and makes possible by mounting Task
+into Renovate's container. By hand it is `task tasklib:bump VERSION=<tag>`. A
+pull request that moved the pin alone fails `Task library lock`.
 
 It replaced Dependabot rather than joining it. Dependabot handles gomod,
 github-actions and npm natively but cannot see a version pinned inside a
