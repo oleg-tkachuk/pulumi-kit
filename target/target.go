@@ -113,7 +113,7 @@ func MatchAll(resources []Resource, selectors, groupPackage string) ([]string, e
 		taken = map[string]struct{}{}
 	)
 
-	for _, selector := range strings.Split(selectors, SelectorSeparator) {
+	for selector := range strings.SplitSeq(selectors, SelectorSeparator) {
 		selector = strings.TrimSpace(selector)
 
 		if selector == "" {
