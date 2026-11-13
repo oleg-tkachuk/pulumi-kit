@@ -5,7 +5,7 @@ In [ci.yaml](../.github/workflows/ci.yaml).
 | Job | Checks |
 |-----|--------|
 | Changed paths | whether anything the jobs below read has changed |
-| Build, vet and test | `gofmt`, `go vet`, `go test -race`, and prints total coverage |
+| Build, vet and test | `gofmt`, `go vet`, `go fix -diff`, `go test -race`, and prints total coverage |
 | Pulumi CLI | installs the CLI at `PULUMI_VERSION` and runs `internal/integration` against it |
 | Lint | `golangci-lint` with the set in [.golangci.yaml](../.golangci.yaml), which includes `gosec` |
 | Reachable vulnerabilities | `govulncheck`: an advisory only when a vulnerable symbol is actually called |

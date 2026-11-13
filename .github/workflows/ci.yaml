@@ -152,6 +152,11 @@ jobs:
 
       - run: go vet ./...
 
+      # Code still written for an older Go than go.mod names. -diff prints
+      # the rewrite, changes nothing and fails when there is one, so a bump
+      # of the go directive says here what it left behind.
+      - run: go fix -diff ./...
+
       # -race because both commands shell out and parse, and a data race in a
       # tool that decides what gets destroyed is not a failure to discover
       # from behaviour.
