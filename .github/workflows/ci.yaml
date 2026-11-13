@@ -43,6 +43,11 @@ env:
   # a bump is a pull request that says whether the next one still works.
   # renovate: datasource=github-releases depName=pulumi/pulumi
   PULUMI_VERSION: "v3.274.1"
+  # The Task that loads Taskfile.yaml in the lock job below, and the one
+  # renovate.yaml reads from here to refresh that lock. 3.54 is the task
+  # library's floor.
+  # renovate: datasource=github-releases depName=go-task/task
+  TASK_VERSION: "v3.54.0"
 
 jobs:
   # Whether anything the checks below read has changed.
@@ -315,10 +320,46 @@ jobs:
           uvx "zizmor==${ZIZMOR_VERSION}" \
             --config .github/zizmor.yml --persona=regular --format=plain .github/workflows/
 
+  # Taskfile.yaml pins the shared task library at a tag, and .task/remote/
+  # holds what that tag served. Nothing else here runs Task, so a pin moved
+  # without its lock would stay green and fail on the next laptop instead:
+  # offline, Task has nothing to load. This loads the Taskfile from the lock
+  # and compares each locked module with its checksum; it downloads nothing.
+  tasklib:
+    name: Task library lock
+    needs: [changes]
+    if: needs.changes.outputs.relevant != 'false'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # From the release, checked against its checksum file, as the pulumi
+      # CLI is above.
+      - name: Install Task
+        run: |
+          set -euo pipefail
+          bin="${RUNNER_TEMP}/task-bin"
+          base="https://github.com/go-task/task/releases/download/${TASK_VERSION}"
+          archive="task_linux_amd64.tar.gz"
+          cd "$RUNNER_TEMP"
+          curl -fsSL --retry 3 -o "$archive" "${base}/${archive}"
+          curl -fsSL --retry 3 -o task_checksums.txt "${base}/task_checksums.txt"
+          grep " ${archive}\$" task_checksums.txt | sha256sum -c -
+          mkdir -p "$bin"
+          tar -xzf "$archive" -C "$bin" task
+          printf '%s\n' "$bin" >>"$GITHUB_PATH"
+
+      - run: task tasklib:check
+
   dispatch-release:
     name: Dispatch release
-    needs: [changes, test, integration, lint, vuln, syntax, audit]
-    # always(), because a documentation-only push skips the six above and a
+    needs: [changes, test, integration, lint, vuln, syntax, audit, tasklib]
+    # always(), because a documentation-only push skips the seven above and a
     # plain `needs` would skip this with them — and then no release is ever
     # dispatched for a push that only edits prose. semantic-release decides
     # whether anything is due; this only has to let it look.
