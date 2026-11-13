@@ -41,4 +41,9 @@ node_modules/
 # Task: the build verb's output, the coverage report and its own cache.
 bin/
 coverage/
-.task/
+# All of the cache but the lock on the task library: .task/remote/ is what a
+# moved tag is held against, and what Task loads offline. `.task/` would
+# ignore it whatever came after — git re-includes nothing under an excluded
+# directory.
+.task/*
+!.task/remote/

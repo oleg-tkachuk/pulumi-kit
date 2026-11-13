@@ -7,14 +7,17 @@ version: "3"
 #   task verify-all      # before pushing; the same checks CI runs
 #
 # The shared library's Go verbs are flattened in: `task test`, not
-# `task go:test`. Its lint, vuln and actionlint run the tools on PATH; CI pins
-# its own versions in .github/workflows/ci.yaml.
+# `task go:test`. Its lint and vuln, and actionlint here, run the tools on
+# PATH; CI pins its own versions in .github/workflows/ci.yaml.
+#
+# The library is read from the lock in .task/remote/, offline (.taskrc.yml).
+# `task tasklib:bump VERSION=<tag>` moves the pin and the lock together.
 
 silent: true
 
 vars:
   # Shared task library — github.com/oleg-tkachuk/taskfiles, pinned.
-  TASKLIB: 'https://github.com/oleg-tkachuk/taskfiles.git//%s?ref=v14.1.0'
+  TASKLIB: 'https://github.com/oleg-tkachuk/taskfiles.git//%s?ref=v14.18.0'
   # The suite that drives a real pulumi CLI, behind a build tag so
   # `go test ./...` needs none; see internal/integration.
   INTEGRATION_TAG: integration
@@ -23,10 +26,6 @@ vars:
 includes:
   go:
     taskfile: '{{printf .TASKLIB "go"}}'
-    # The sha256 of this Taskfile at TASKLIB's ref. A tag can be moved, so a
-    # moved tag fails rather than runs. Task does not template this field;
-    # bump it with the ref, from the checksum Task reports it got.
-    checksum: 9e9da097a7bcb0992d9705975c3405850ee8c82f34180589a746bdaf913cdb33
     dir: .
     flatten: true
     # Its test:integration says it needs Docker; the one below needs the
@@ -37,6 +36,14 @@ includes:
       PROJECT_NAME: pulumi-kit
       GO_TEST_FLAGS: -race
       GO_TEST_TAGS: '{{.INTEGRATION_TAG}}'
+      # fmt is gofmt alone, which is what fmt:check and CI hold the tree to.
+      # Unset, it would also run goimports, on the machines that have one.
+      GO_FMT_GOIMPORTS: "0"
+  # The pin above and its lock: bump, check, lock. Not flattened — these act
+  # on the Taskfile itself, not on the Go module.
+  tasklib:
+    taskfile: '{{printf .TASKLIB "tasklib"}}'
+    dir: .
 
 tasks:
   default:
@@ -44,10 +51,12 @@ tasks:
       - task --list
 
   verify-all:
-    desc: "gofmt + go mod tidy/verify + go vet + the unit suite + the tagged suite compiled + golangci-lint + govulncheck + actionlint — what CI runs, but the integration suite"
+    desc: "the task library's lock + gofmt + go mod tidy/verify + go fix + go vet + the unit suite + the tagged suite compiled + golangci-lint + govulncheck + actionlint — what CI runs, but zizmor and the integration suite"
     cmds:
+      - task: tasklib:check
       - task: fmt:check
       - task: verify:tidy
+      - task: fix:check
       - task: vet
       - task: test
       - task: test:tagged:compile
@@ -63,7 +72,7 @@ tasks:
   verify:tidy:
     desc: "Fail when go.mod or go.sum is not what go mod tidy writes, or a download differs from go.sum"
     cmds:
-      - go mod tidy -diff
+      - task: tidy:check
       - go mod verify
 
   verify:workflows:

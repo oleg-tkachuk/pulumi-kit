@@ -1,0 +1,4 @@
+# The task library loads from the lock committed in .task/remote/, so no
+# command fetches it. `task tasklib:bump VERSION=<tag>` is the one that does.
+remote:
+  offline: true
