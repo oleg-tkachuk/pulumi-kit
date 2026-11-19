@@ -42,7 +42,7 @@ env:
   # whatever is on PATH — so this is the version they are proven against, and
   # a bump is a pull request that says whether the next one still works.
   # renovate: datasource=github-releases depName=pulumi/pulumi
-  PULUMI_VERSION: "v3.276.0"
+  PULUMI_VERSION: "v3.277.0"
   # The Task that loads Taskfile.yaml in the lock job below, and the one
   # renovate.yaml reads from here to refresh that lock. 3.54 is the task
   # library's floor.
